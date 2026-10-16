@@ -154,7 +154,7 @@ export interface LocationStationComparison {
   targetAzimuth: number;
   targetRise: Date | null;
   targetSet: Date | null;
-  targetMaxAlt: number;
+  targetMaxAlt: number | null;
   isAboveHorizonNow: boolean;
   notes: string;
 }

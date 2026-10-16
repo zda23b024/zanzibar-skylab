@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as Astronomy from 'astronomy-engine';
-import { computeSkyState, calculateLST, calculateTwilight, buildObservationPlan, getLunarPhaseNames, computeObjectEphemerisCurve } from '../astronomy/engine';
+import { computeSkyState, calculateLST, calculateTwilight, buildObservationPlan, getLunarPhaseNames, computeObjectEphemerisCurve, computeLocationNetworkComparison } from '../astronomy/engine';
 import { projectHorizontal, unprojectCanvasPoint } from '../astronomy/projection';
 import { BRIGHT_STAR_CATALOG } from '../data/stars';
 import { CONSTELLATIONS } from '../data/constellations';
@@ -67,6 +67,27 @@ describe('2. Altitude & Azimuth Transformations', () => {
     // Invert unproject
     const unproj = unprojectCanvasPoint(zenith.x, zenith.y, opts);
     expect(unproj.altitudeDeg).toBeCloseTo(90, 1);
+
+    for (const projection of ['stereographic', 'equidistant'] as const) {
+      const point = projectHorizontal(23.5, 127, { ...opts, projection });
+      const inverse = unprojectCanvasPoint(point.x, point.y, { ...opts, projection });
+      expect(inverse.altitudeDeg).toBeCloseTo(23.5, 8);
+      expect(inverse.azimuthDeg).toBeCloseTo(127, 8);
+    }
+
+    const testDate = new Date(Date.UTC(2026, 2, 21, 9, 0, 0));
+    const sky = computeSkyState(testDate, DEFAULT_OBSERVER);
+    const betelgeuse = sky.stars.find(star => star.id === 'HR 2061')!;
+    const catalogEntry = BRIGHT_STAR_CATALOG.find(star => star.id === 'HR 2061')!;
+    const time = Astronomy.MakeTime(testDate);
+    const observer = new Astronomy.Observer(DEFAULT_OBSERVER.latitude, DEFAULT_OBSERVER.longitude, DEFAULT_OBSERVER.elevation);
+    const ra = catalogEntry.ra * 15 * Math.PI / 180;
+    const dec = catalogEntry.dec * Math.PI / 180;
+    const vector = new Astronomy.Vector(Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec), time);
+    const horizonVector = Astronomy.RotateVector(Astronomy.Rotation_EQJ_HOR(time, observer), vector);
+    const horizon = Astronomy.HorizonFromVector(horizonVector, 'normal');
+    expect(betelgeuse.altitude).toBeCloseTo(horizon.lat, 8);
+    expect(betelgeuse.azimuth).toBeCloseTo(horizon.lon, 8);
   });
 });
 
@@ -188,18 +209,59 @@ describe('9. Constellation Data Integrity', () => {
 });
 
 describe('10. Observation Target Selection', () => {
-  it('generates transparent observation targets with rules', () => {
+  it('uses the selected local day sunset and following local day sunrise', () => {
     const testDate = new Date(Date.UTC(2026, 2, 21, 18, 30, 0)); // 21:30 EAT
     const sky = computeSkyState(testDate, DEFAULT_OBSERVER);
     const plan = buildObservationPlan(sky);
 
     expect(plan.length).toBeGreaterThan(0);
+    const startOfSelectedDay = Date.UTC(2026, 2, 20, 21, 0, 0);
+    const startOfFollowingDay = Date.UTC(2026, 2, 21, 21, 0, 0);
+    const sunset = Astronomy.SearchRiseSet(
+      Astronomy.Body.Sun,
+      new Astronomy.Observer(DEFAULT_OBSERVER.latitude, DEFAULT_OBSERVER.longitude, DEFAULT_OBSERVER.elevation),
+      -1,
+      Astronomy.MakeTime(new Date(startOfSelectedDay)),
+      1.05
+    );
+    const sunrise = Astronomy.SearchRiseSet(
+      Astronomy.Body.Sun,
+      new Astronomy.Observer(DEFAULT_OBSERVER.latitude, DEFAULT_OBSERVER.longitude, DEFAULT_OBSERVER.elevation),
+      1,
+      Astronomy.MakeTime(new Date(startOfFollowingDay)),
+      1.05
+    );
+    const localTime = (date: Date) => new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(11, 16);
+    const expectedInterval = `${localTime(sunset!.date)} – ${localTime(sunrise!.date)} EAT (Dusk to Dawn)`;
+
+    expect(plan[0].nightObservationInterval).toBe(expectedInterval);
     plan.forEach(t => {
       expect(t.name).toBeDefined();
       expect(t.altitudeNow).toBeGreaterThanOrEqual(-90);
       expect(t.azimuthNow).toBeGreaterThanOrEqual(0);
       expect(['optimal', 'moderate', 'marginal', 'below_horizon', 'daylight']).toContain(t.visibilityStatus);
     });
+  });
+
+  it('returns no recommendations when the selected day sunset is unavailable', () => {
+    const polarObserver = { ...DEFAULT_OBSERVER, latitude: 90 };
+    const sky = computeSkyState(new Date(Date.UTC(2026, 5, 21, 12, 0, 0)), polarObserver);
+
+    expect(buildObservationPlan(sky)).toEqual([]);
+  });
+
+  it('bounds station peak altitude to its calculated observation night', () => {
+    const testDate = new Date(Date.UTC(2026, 2, 21, 18, 0, 0));
+    const comparison = computeLocationNetworkComparison('jupiter', testDate, [DEFAULT_OBSERVER])[0];
+    const ephemeris = computeObjectEphemerisCurve('jupiter', testDate, DEFAULT_OBSERVER);
+    const observer = new Astronomy.Observer(DEFAULT_OBSERVER.latitude, DEFAULT_OBSERVER.longitude, DEFAULT_OBSERVER.elevation);
+    const sunset = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, Astronomy.MakeTime(new Date(Date.UTC(2026, 2, 20, 21, 0, 0))), 1.05)!;
+    const sunrise = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, 1, Astronomy.MakeTime(new Date(Date.UTC(2026, 2, 21, 21, 0, 0))), 1.05)!;
+    const nightPeak = Math.max(...ephemeris.curve
+      .filter(point => point.time >= sunset.date && point.time <= sunrise.date)
+      .map(point => point.altitude));
+
+    expect(comparison.targetMaxAlt).toBeCloseTo(Math.round(nightPeak * 10) / 10, 1);
   });
 });
 
@@ -219,6 +281,22 @@ describe('11. Ephemeris & Transit Calculation Verification', () => {
       expect(pt.azimuth).toBeGreaterThanOrEqual(0);
       expect(pt.azimuth).toBeLessThanOrEqual(360);
       expect(pt.timeLabel).toMatch(/^\d{2}:\d{2}$/);
+    });
+
+    const observer = new Astronomy.Observer(DEFAULT_OBSERVER.latitude, DEFAULT_OBSERVER.longitude, DEFAULT_OBSERVER.elevation);
+    const selectedDayStart = Astronomy.MakeTime(new Date(Date.UTC(2026, 2, 20, 21, 0, 0)));
+    const followingDayStart = Astronomy.MakeTime(new Date(Date.UTC(2026, 2, 21, 21, 0, 0)));
+    const sunset = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, selectedDayStart, 1.05)!;
+    const sunrise = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, 1, followingDayStart, 1.05)!;
+    const nightDarkPoints = ephemeris.curve.filter(point =>
+      point.time >= sunset.date && point.time <= sunrise.date && point.sunAltitude <= -12
+    );
+
+    expect(nightDarkPoints.length).toBeGreaterThan(0);
+    expect(ephemeris.peakAltitudeDarkSky).toBeCloseTo(Math.max(...nightDarkPoints.map(point => point.altitude)), 1);
+    ephemeris.observableWindows?.forEach(window => {
+      expect(window.start.getTime()).toBeGreaterThanOrEqual(sunset.date.getTime());
+      expect(window.end.getTime()).toBeLessThanOrEqual(sunrise.date.getTime());
     });
   });
 });

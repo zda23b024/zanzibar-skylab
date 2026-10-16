@@ -60,6 +60,31 @@ export function getZanzibarCalendarDayBounds(date: Date): {
   return { localDateString, startOfLocalDayUtc, endOfLocalDayUtc, localYear, localMonth, localDay };
 }
 
+function calculateObservationNight(date: Date, loc: ObserverLocation): { sunset: Date; sunrise: Date } | null {
+  const { startOfLocalDayUtc, endOfLocalDayUtc } = getZanzibarCalendarDayBounds(date);
+  const nextDayBounds = getZanzibarCalendarDayBounds(endOfLocalDayUtc);
+  const observer = getAstroObserver(loc);
+  let sunset: Date | null = null;
+  let sunrise: Date | null = null;
+
+  try {
+    const event = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, Astronomy.MakeTime(startOfLocalDayUtc), 1.05);
+    if (event && event.date >= startOfLocalDayUtc && event.date < endOfLocalDayUtc) sunset = event.date;
+  } catch {
+    sunset = null;
+  }
+
+  try {
+    const event = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, 1, Astronomy.MakeTime(nextDayBounds.startOfLocalDayUtc), 1.05);
+    if (event && event.date >= nextDayBounds.startOfLocalDayUtc && event.date < nextDayBounds.endOfLocalDayUtc) sunrise = event.date;
+  } catch {
+    sunrise = null;
+  }
+
+  if (!sunset || !sunrise || sunset >= sunrise) return null;
+  return { sunset, sunrise };
+}
+
 /**
  * Creates an Astronomy.Observer object from an ObserverLocation configuration.
  */
@@ -470,6 +495,7 @@ export function computeObjectEphemerisCurve(
   let peakAlt24h = -999;
   let peakAltDarkSky: number | null = null;
   let peakAltAstroDark: number | null = null;
+  const nightWindow = calculateObservationNight(baseDate, observerLoc);
 
   for (let i = 0; i < totalSteps; i++) {
     const sampleDate = new Date(startLocalNoonUtc.getTime() + i * stepMs);
@@ -514,8 +540,9 @@ export function computeObjectEphemerisCurve(
       skyCondition = 'astronomical_darkness';
     }
 
-    const isDarkSky = sunHor.altitude <= -12; // Nautical or Astronomical darkness
-    const isAstroDark = sunHor.altitude <= -18; // Pure astronomical darkness
+    const isObservationNight = nightWindow !== null && sampleDate >= nightWindow.sunset && sampleDate <= nightWindow.sunrise;
+    const isDarkSky = isObservationNight && sunHor.altitude <= -12;
+    const isAstroDark = isObservationNight && sunHor.altitude <= -18;
 
     if (isDarkSky) {
       if (peakAltDarkSky === null || objAlt > peakAltDarkSky) {
@@ -643,7 +670,10 @@ export function computeObjectEphemerisCurve(
     criteria = 'Criteria: Dark-sky peak altitude between 5° and 15°; high atmospheric attenuation near sea level.';
   } else {
     quality = 'unfavorable';
-    if (peakAlt24h > 15) {
+    if (!nightWindow) {
+      summary = 'Night observation interval unavailable: sunset or the following local-day sunrise could not be calculated.';
+      criteria = 'No observation-night recommendation is available without both calculated solar events.';
+    } else if (peakAlt24h > 15) {
       summary = `Unfavorable for nighttime observation: object achieves +${peakAlt24h.toFixed(1)}° during daylight or civil twilight, but is below 15° or below horizon during dark skies.`;
       criteria = 'Criteria: Elevated only during daylight (Sun > -0.83°) or civil twilight (Sun > -6°). Not observable under dark skies.';
     } else {
@@ -687,6 +717,7 @@ export function computeLocationNetworkComparison(
   return stations.map(station => {
     const tw = calculateTwilight(date, station);
     const ephem = computeObjectEphemerisCurve(targetId, date, station);
+    const nightWindow = calculateObservationNight(date, station);
     const astroObs = getAstroObserver(station);
     const time = Astronomy.MakeTime(date);
 
@@ -725,7 +756,12 @@ export function computeLocationNetworkComparison(
       az = hor.lon;
     }
 
-    const peakAlt = ephem.peakAltitudeDarkSky !== null ? ephem.peakAltitudeDarkSky : ephem.peakAltitude24h;
+    const nightAltitudes = nightWindow
+      ? ephem.curve
+          .filter(point => point.time >= nightWindow.sunset && point.time <= nightWindow.sunrise)
+          .map(point => point.altitude)
+      : [];
+    const peakAlt = nightAltitudes.length > 0 ? Math.max(...nightAltitudes) : null;
 
     return {
       station,
@@ -737,7 +773,7 @@ export function computeLocationNetworkComparison(
       targetAzimuth: Math.round(az * 10) / 10,
       targetRise: ephem.riseTime,
       targetSet: ephem.setTime,
-      targetMaxAlt: Math.round(peakAlt * 10) / 10,
+      targetMaxAlt: peakAlt !== null ? Math.round(peakAlt * 10) / 10 : null,
       isAboveHorizonNow: alt >= 0,
       notes: `${station.name} (lat ${station.latitude.toFixed(2)}°, elev ${station.elevation}m)`
     };
@@ -753,26 +789,25 @@ export function buildObservationPlan(skyState: SkyState): ObservationTarget[] {
   const astroObserver = getAstroObserver(skyState.observer);
   const targets: ObservationTarget[] = [];
 
-  // Determine the local night window: from local sunset to next sunrise
-  const { startOfLocalDayUtc, endOfLocalDayUtc } = getZanzibarCalendarDayBounds(skyState.date);
-  const sunset = skyState.twilight.sunset || new Date(startOfLocalDayUtc.getTime() + 18.5 * 3600 * 1000);
-  const nextSunrise = new Date(sunset.getTime() + 11.5 * 3600 * 1000);
+  const nightWindow = calculateObservationNight(skyState.date, skyState.observer);
+  if (!nightWindow) return targets;
+  const { sunset, sunrise } = nightWindow;
 
   const formatEAT = (d: Date) => {
     const z = new Date(d.getTime() + ZANZIBAR_TZ_OFFSET_MS);
     return `${z.getUTCHours().toString().padStart(2, '0')}:${z.getUTCMinutes().toString().padStart(2, '0')}`;
   };
 
-  const nightIntervalLabel = `${formatEAT(sunset)} – ${formatEAT(nextSunrise)} EAT (Dusk to Dawn)`;
+  const nightIntervalLabel = `${formatEAT(sunset)} – ${formatEAT(sunrise)} EAT (Dusk to Dawn)`;
 
-  // Sample timestamps across the 11.5-hour night interval (every 30 minutes = 24 points)
-  const nightSteps = 24;
-  const nightStepMs = (nextSunrise.getTime() - sunset.getTime()) / (nightSteps - 1);
+  // Sample the complete event-bounded night at intervals no longer than 30 minutes.
+  const nightStepMs = 30 * 60 * 1000;
+  const nightSteps = Math.ceil((sunrise.getTime() - sunset.getTime()) / nightStepMs) + 1;
   const nightSampleTimes: Astronomy.AstroTime[] = [];
   const nightSunAlts: number[] = [];
 
   for (let i = 0; i < nightSteps; i++) {
-    const tDate = new Date(sunset.getTime() + i * nightStepMs);
+    const tDate = new Date(Math.min(sunset.getTime() + i * nightStepMs, sunrise.getTime()));
     const aTime = Astronomy.MakeTime(tDate);
     nightSampleTimes.push(aTime);
 

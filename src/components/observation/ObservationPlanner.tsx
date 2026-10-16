@@ -525,7 +525,7 @@ export const ObservationPlanner: React.FC<ObservationPlannerProps> = ({
             </h3>
           </div>
           <span className="text-xs text-slate-400 font-mono">
-            {targets.length} Targets Evaluated · {targets[0]?.nightObservationInterval || 'Night Window'}
+            {targets.length} Targets Evaluated · {targets[0]?.nightObservationInterval || (isSw ? 'Dirisha la usiku halipatikani' : 'Night window unavailable')}
           </span>
         </div>
 
@@ -544,7 +544,15 @@ export const ObservationPlanner: React.FC<ObservationPlannerProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-mono">
-              {targets.map(t => (
+              {targets.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-5 text-center text-amber-300 font-sans">
+                    {isSw
+                      ? 'Mapendekezo hayapatikani kwa sababu machweo au macheo ya siku inayofuata hayakuweza kuhesabiwa.'
+                      : 'Recommendations are unavailable because sunset or the following local-day sunrise could not be calculated.'}
+                  </td>
+                </tr>
+              ) : targets.map(t => (
                 <tr key={t.id} className="hover:bg-slate-800/30 transition-colors">
                   <td className="py-3 font-sans font-bold text-slate-100">
                     {t.name}
@@ -565,7 +573,7 @@ export const ObservationPlanner: React.FC<ObservationPlannerProps> = ({
                   </td>
                   <td className="py-3 tabular-nums font-semibold">
                     <span className="text-emerald-400">+{t.maxAltitudeTonight.toFixed(1)}°</span>
-                    {t.peakAltitudeDarkSky !== null && (
+                    {t.peakAltitudeDarkSky != null && (
                       <span className="text-slate-500 text-[10px] ml-1">
                         ({t.peakAltitudeDarkSky >= 0 ? `+${t.peakAltitudeDarkSky.toFixed(1)}°` : `${t.peakAltitudeDarkSky.toFixed(1)}°`} dark)
                       </span>
@@ -691,7 +699,11 @@ export const ObservationPlanner: React.FC<ObservationPlannerProps> = ({
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 block">PEAK TONIGHT</span>
-                    <span className="font-semibold text-emerald-400">+{comp.targetMaxAlt.toFixed(1)}°</span>
+                    <span className="font-semibold text-emerald-400">
+                      {comp.targetMaxAlt === null
+                        ? (isSw ? 'Haipatikani' : 'Unavailable')
+                        : `${comp.targetMaxAlt >= 0 ? '+' : ''}${comp.targetMaxAlt.toFixed(1)}°`}
+                    </span>
                   </div>
                 </div>
               </div>
