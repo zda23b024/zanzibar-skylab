@@ -1,0 +1,6 @@
+{
+  "name": "Zanzibar SkyLab",
+  "description": "Interactive Digital Planetarium and Astronomy Learning Platform. Explore the celestial sky from Zanzibar with real-time astronomical calculations, verified star catalog, lunar mechanics, observation planner, and interactive classroom challenges.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
