@@ -110,6 +110,19 @@ preserved. Timers, speech, media tracks, audio nodes, contexts, and object URLs 
 cleaned up when the dialog unmounts; reusable narration resources are retained for
 replay while the dialog remains open. Nothing is uploaded.
 
+`getDisplayMedia()` cannot force a tab source. The picker prioritizes the current tab,
+but the recorder verifies both `displaySurface === "browser"` and a per-page Capture
+Handle/origin, rejecting screens, windows, and other tabs. Capture Handle support is
+required; unsupported browsers cannot record. Hidden tabs may throttle timers and
+rendering; the recording is discarded if the page becomes hidden, a media track is
+muted, or recorder data stalls. Same-window
+tab switching is therefore not supported for a reliable final video. Use **Open
+Dedicated Recording Window** and keep it visible, preferably on another monitor. If
+another window obscures or hides it, the run is discarded. This is a mitigation, not a
+browser-enforced guarantee that a background window will continue rendering. Test on
+the target Chrome version and deployment before relying on it; use an external recorder
+if uninterrupted background capture is essential.
+
 ### Exact local checks
 
 1. Run `npm run lint`, `npm test`, and `npm run build`.
@@ -142,10 +155,13 @@ review. It cannot certify natural delivery or pronunciation.
 Automated coverage includes the real WAV's duration and signal in every scene,
 audio-clock scheduling, timer cleanup, missing/HTML assets, silent or wrong-duration
 tracks, explicit audio/video mixing, required audio gating, TTS errors, cancellation,
-and recorder finalization. Browser APIs are mocked in unit tests. HTTP checks verified
-that development and production-preview URLs return the exact WAV with HTTP 200 and
-`audio/wav`. No browser was exposed in the coding session, so audible playback,
-downloaded video playback, and deployed HTTPS capture require the manual checks above.
+and recorder finalization. Browser APIs are mocked in unit tests. The current UI was
+smoke-tested in VS Code's embedded Electron Chromium, including the preflight dialog and
+Capture Handle API availability. A real desktop Chrome permission-picker/capture run,
+background-tab interruption test, downloaded audio/video playback check, and capture
+on a Vercel deployment containing these changes have not been performed. Complete the
+manual checks above in the exact target Chrome version and deployed HTTPS environment
+before relying on a submission recording.
 
 ### Vercel recording deployment
 

@@ -1,11 +1,11 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import { COUNTDOWN, DemoFrame, frameAt, runTimeline, scenes } from './demoScenes';
-import { extensionFor, RecordingSession, recordingSupported, stopTracks } from './recordingService';
+import { assertBrowserTabCapture, displayCaptureOptions, extensionFor, RecordingSession, recordingSupported, stopTracks } from './recordingService';
 import { DemoOverlay } from './DemoOverlay';
 import { englishVoices, NarrationAudio, NARRATION_URL, NARRATION_LABEL, narrationStream, runNarratedTimeline, SpeechPreview } from './narrationService';
 
 type Phase = 'preflight' | 'permission' | 'running' | 'finalizing' | 'finished' | 'error';
-export function DemoController({ onClose, onActive, renderObservatory }: { onClose: () => void; onActive: (active: boolean) => void; renderObservatory: (frame: DemoFrame) => React.ReactNode }) {
+export function DemoController({ onClose, onActive, renderObservatory, isDedicatedWindow, onOpenDedicatedWindow }: { onClose: () => void; onActive: (active: boolean) => void; renderObservatory: (frame: DemoFrame) => React.ReactNode; isDedicatedWindow: boolean; onOpenDedicatedWindow: () => boolean }) {
   const [phase, setPhase] = useState<Phase>('preflight');
   const [elapsed, setElapsed] = useState(-COUNTDOWN);
   const [message, setMessage] = useState('');
@@ -91,12 +91,13 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
     let capture: MediaStream | undefined;
     let mixed: MediaStream | undefined;
     try {
-      const permission = navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const permission = navigator.mediaDevices.getDisplayMedia(displayCaptureOptions());
       // Unlock audio in the SAME gesture; settle immediately to avoid unhandled rejections.
       const prepared = narration.current!.prepare().then(() => null, error => error);
       speech.current?.stop(); clearDownload(); setVoiceError(''); setPhase('permission');
       capture = await permission;
       if (token !== generation.current) { stopTracks(capture); return; }
+      assertBrowserTabCapture(capture);
       const audioError = await prepared;
       if (token !== generation.current) { stopTracks(capture); return; }
       if (audioError) throw audioError;
@@ -161,7 +162,10 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
     <h2 id="demo-title">Zanzibar SkyLab</h2><h3>Automated Competition Recording</h3>
     {(phase === 'preflight' || phase === 'error') && <>
       <p><strong>2:55 presentation</strong>, including introduction and conclusion, with no recorded countdown. Recommended: a 16:9 browser window at 1920 x 1080.</p>
-      <p>In the sharing picker, select <strong>This Tab</strong> (or this site under Chrome Tab). Narration is mixed directly into the recording; sharing tab audio is optional. Keep this tab visible.</p>
+      <p><strong>Tab-only capture:</strong> select <strong>This Tab</strong> in Chrome. Screen and window selections are rejected. Narration is mixed directly into the recording; captured tab/system audio is not requested.</p>
+      <p role="note"><strong>Background-tab warning:</strong> browsers may throttle hidden-tab rendering. Switching to another tab in this window or minimizing it stops and discards the recording to prevent a frozen or unsynchronized video. For other work, open a dedicated recording window and keep it visible, preferably on another monitor. If it becomes hidden or obscured, recording is discarded. Background recording is not guaranteed.</p>
+      {!isDedicatedWindow && <div className="demo-actions"><button onClick={() => { if (!onOpenDedicatedWindow()) setMessage('The dedicated recording window was blocked. Allow pop-ups for this site, then try again.'); }}>Open Dedicated Recording Window</button></div>}
+      {isDedicatedWindow && <p role="status">Dedicated recording window. Keep this window open and its tab visible; switch to a separate window for other work.</p>}
       <p role="status">English narration: <strong>{audioStatus === 'loading' ? 'loading audio file...' : audioStatus === 'ready' ? 'file loaded; timing, silence and audio activation checked on start' : 'audio file unavailable'}</strong>. {!narrationFile && <a href={NARRATION_URL} target="_blank" rel="noreferrer">Open narration file</a>}</p>
       <p>{trackLabel}. Voice quality and pronunciation must be reviewed by listening; technical checks do not certify a professional performance.</p>
       <label className="block">Use your professional MP3 or WAV (175 seconds)
@@ -177,11 +181,11 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
       {!selectedVoice && <p>No English browser voice is loaded. Install an English system voice and reload to use TTS preview. The bundled recording voice does not depend on browser voices.</p>}
       {voiceError && <p role="alert">{voiceError}</p>}
       <div className="demo-actions"><button onClick={testVoice} disabled={audioStatus !== 'ready' && !selectedVoice}>Test Voice</button><button onClick={stopVoice}>Stop Voice Test</button></div>
-      <p>Recording: {recordingSupported() ? 'browser support detected; screen permission and ready narration are required.' : 'unsupported here. Try desktop Chrome or Edge on localhost or HTTPS. You can also record the preview externally.'}</p>
+      <p>Recording: {recordingSupported() ? 'tab capture and exact-tab verification are available; permission and ready narration are still required.' : 'requires localhost or HTTPS plus desktop Chrome/Edge with Capture Handle support. You can still preview or use an external recorder.'}</p>
       {message && <p role="alert">{message}</p>}
       <div className="demo-actions"><button autoFocus disabled={!recordingSupported() || audioStatus !== 'ready'} onClick={startRecording}>Start Recording</button><button onClick={playPreview} disabled={audioStatus !== 'ready' && !selectedVoice}>Play Demo Without Recording</button></div>
     </>}
-    {phase === 'permission' && <p role="status">Choose this tab in the browser sharing dialog. Narration will be activated before recording starts. Cancel releases any capture granted afterward.</p>}
+    {phase === 'permission' && <p role="status">Choose “This Tab” in the browser sharing dialog. Other surfaces will be rejected. Narration will be activated before recording starts. Cancel releases any capture granted afterward.</p>}
     {phase === 'finalizing' && <p role="status">Finalizing recording...</p>}
     {phase === 'finished' && <><p role="status">{message}</p><div className="demo-actions">{download && <a href={download.url} download={download.name}>Download Recording</a>}<button autoFocus onClick={replay}>Replay</button></div></>}
     <button className="demo-cancel" onClick={cancel}>{phase === 'finished' ? 'Close' : 'Cancel'}</button>

@@ -198,16 +198,35 @@ export function narrationStream(capture: MediaStream, narration: MediaStreamTrac
 export function runNarratedTimeline(audio: Pick<NarrationAudio, 'time' | 'healthy'>, tick: (time: number) => void, complete: () => void, fail: (message: string) => void) {
   let previous = audio.time;
   let progressedAt = performance.now();
+  let lastTickAudioTime = audio.time;
   let stopped = false;
   const timer = setInterval(() => {
     if (!audio.healthy) { cancel(); fail('Narration audio was interrupted. The recording was discarded; check audio permissions and try again.'); return; }
     const time = audio.time;
+    if (time - lastTickAudioTime > 2) { cancel(); fail('Presentation updates fell behind the narration clock. The recording was discarded; keep the recording tab visible or use a dedicated recording window.'); return; }
+    lastTickAudioTime = time;
     if (time >= DURATION + COUNTDOWN) { cancel(); complete(); return; }
     if (time > previous) { previous = time; progressedAt = performance.now(); }
     else if (performance.now() - progressedAt > 4000) { cancel(); fail('Narration playback stalled. The recording was discarded rather than saving a silent video.'); return; }
     tick(time - COUNTDOWN);
   }, 50);
-  function cancel() { if (!stopped) { stopped = true; clearInterval(timer); } }
-  tick(audio.time - COUNTDOWN);
+  const visibilityChanged = () => {
+    if (document.visibilityState !== 'visible') {
+      cancel();
+      fail('The recording tab became hidden. Background rendering is not reliable, so the recording was discarded. Use a dedicated recording window and keep it visible.');
+    }
+  };
+  function cancel() {
+    if (!stopped) {
+      stopped = true;
+      clearInterval(timer);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', visibilityChanged);
+    }
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', visibilityChanged);
+    visibilityChanged();
+  }
+  if (!stopped) tick(audio.time - COUNTDOWN);
   return cancel;
 }

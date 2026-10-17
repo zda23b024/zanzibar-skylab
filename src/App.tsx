@@ -23,14 +23,29 @@ import { ObserverLocation, CalculatedBody } from './data/types';
 import { computeSkyState, buildObservationPlan } from './astronomy/engine';
 import { Sparkles, Telescope, Compass, BookOpen, Moon, ArrowRight, ShieldCheck } from 'lucide-react';
 
+const isDedicatedRecordingWindow = new URLSearchParams(window.location.search).get('competitionRecordingWindow') === '1';
+
 export default function App() {
-  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(() => DEMO_ENABLED && isDedicatedRecordingWindow);
   const [demoActive, setDemoActive] = useState(false);
+  const openDedicatedWindow = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('competitionRecordingWindow', '1');
+    const recordingWindow = window.open(url.href, 'zanzibar-skylab-recording', 'popup,width=1440,height=900');
+    if (!recordingWindow) return false;
+    recordingWindow.focus();
+    return true;
+  };
+  const closeDemo = () => {
+    setDemoOpen(false);
+    if (isDedicatedRecordingWindow) window.close();
+  };
   return <>
     <div style={{ visibility: demoActive ? 'hidden' : 'visible' }} inert={demoOpen}>
       <Observatory suspended={demoOpen} onStartDemo={DEMO_ENABLED ? () => setDemoOpen(true) : undefined} />
     </div>
-    {DEMO_ENABLED && demoOpen && <DemoController onClose={() => setDemoOpen(false)} onActive={setDemoActive}
+    {DEMO_ENABLED && demoOpen && <DemoController onClose={closeDemo} onActive={setDemoActive}
+      isDedicatedWindow={isDedicatedRecordingWindow} onOpenDedicatedWindow={openDedicatedWindow}
       renderObservatory={frame => <Observatory demoFrame={frame} />} />}
   </>;
 }

@@ -39,9 +39,13 @@ describe('audio-clock scene scheduling', () => {
     vi.useFakeTimers(); const audio = { time: 0, healthy: true }; const tick = vi.fn(); const done = vi.fn(); const fail = vi.fn();
     runNarratedTimeline(audio, tick, done, fail);
     expect(tick).toHaveBeenLastCalledWith(0);
-    audio.time = 55; vi.advanceTimersByTime(50); expect(tick).toHaveBeenLastCalledWith(55);
-    audio.time = 174.99; vi.advanceTimersByTime(50); expect(done).not.toHaveBeenCalled();
-    audio.time = 175; vi.advanceTimersByTime(50); expect(done).toHaveBeenCalledOnce();
+    const advanceAudioTo = (target: number) => {
+      while (audio.time + 1 < target) { audio.time += 1; vi.advanceTimersByTime(1000); }
+      audio.time = target; vi.advanceTimersByTime(50);
+    };
+    advanceAudioTo(55); expect(tick).toHaveBeenLastCalledWith(55);
+    advanceAudioTo(174.99); expect(done).not.toHaveBeenCalled();
+    advanceAudioTo(175); expect(done).toHaveBeenCalledOnce();
     expect(fail).not.toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(0);
   });
   it('fails on stalled or suspended audio instead of saving silent video', () => {
