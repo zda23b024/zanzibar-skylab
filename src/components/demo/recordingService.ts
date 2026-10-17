@@ -12,8 +12,9 @@ export class RecordingSession {
   private failed = false;
   private resolve!: (blob: Blob | null) => void;
   private result: Promise<Blob | null>;
-  private ended = () => { if (!this.finishing) this.onFailure('Screen sharing ended. No completed recording was saved.'); };
-  constructor(private stream: MediaStream, private onFailure: (message: string) => void) {
+  private ended = () => { if (!this.finishing) this.onFailure('Screen sharing or narration ended. No completed recording was saved.'); };
+  constructor(private stream: MediaStream, private onFailure: (message: string) => void, requireNarration = false) {
+    if (requireNarration && !stream.getAudioTracks().some(track => track.readyState === 'live')) throw new Error('Recording requires a live narration audio track.');
     const mimeType = selectMime(type => MediaRecorder.isTypeSupported(type));
     if (!mimeType) throw new Error('No supported video recording format.');
     this.recorder = new MediaRecorder(stream, { mimeType });
@@ -28,7 +29,7 @@ export class RecordingSession {
       this.release();
       this.resolve(blob);
     };
-    stream.getVideoTracks().forEach(track => track.addEventListener('ended', this.ended));
+    stream.getTracks().forEach(track => track.addEventListener('ended', this.ended));
   }
   start() { this.recorder.start(1000); }
   finish(keep: boolean): Promise<Blob | null> {
@@ -41,7 +42,7 @@ export class RecordingSession {
     return this.result;
   }
   private release() {
-    this.stream.getVideoTracks().forEach(track => track.removeEventListener('ended', this.ended));
+    this.stream.getTracks().forEach(track => track.removeEventListener('ended', this.ended));
     stopTracks(this.stream);
   }
 }

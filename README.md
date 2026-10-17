@@ -45,58 +45,98 @@ and search the directory. The original Observatory stays mounted and paused so i
 navigation, date, observer, selections, appearance, local filters, and sky controls
 survive cancellation and completion. It resumes after the result dialog closes.
 
-There is no narration asset in this repository. Recordings therefore have subtitles
-and **no supplied voice narration**; shared tab/system audio may still be captured.
-Speech synthesis is intentionally not used because it is not reliably captured.
-No fabricated audio asset, network voice service, or API key is involved.
+### English narration and recording audio
 
-Capture requires permission on every run and a supporting desktop browser on
-localhost or HTTPS. Chrome/Edge desktop are recommended; actual support is checked
-at runtime. Browser/OS combinations differ in tab and audio capture support.
-Select **This Tab** (or this site's entry under Chrome Tab) and **Share tab audio**
-if offered. Use a 16:9 browser window, keep the tab foregrounded, and do not let the
-computer sleep. JavaScript deadlines cannot guarantee frame-exact duration under
-OS suspension or browser throttling. The scheduler requests stop at 175 seconds
-following the countdown, independently of rendering updates.
+The original "Voice unavailable" status was literal UI text: no audio asset, audio
+loader, speech synthesis, or Web Audio mixer existed. The recorder received only
+the screen-capture stream, so the previous implementation could not supply narration.
 
-MediaRecorder selects a supported WebM or MP4 format. Completion requests an automatic
-download, with **Download Recording** retained if the browser blocks automatic saving.
-**Stop** produces a partial recording; **Cancel** discards it. Denial, capture ending,
-or recorder failure offers playback without recording. External recording software
-can capture that playback when browser capture is unavailable. URLs and streams are
-released on cancellation, replay, and unmount. Nothing is uploaded.
+The real bundled asset is `public/audio/competition-narration.en.wav`, served at
+`/audio/competition-narration.en.wav` on localhost and Vercel (Vite's base URL is
+respected). It was generated locally with the installed Microsoft Hazel Desktop
+English voice, using `scripts/generate-demo-narration.ps1`. It is synthesized speech,
+not a human recording. The original script lives in
+`src/components/demo/narrationScript.json`, also used for the scene subtitles.
+The WAV is mono 22,050 Hz, 16-bit PCM, 178 seconds, approximately 7.85 MB. It includes
+three seconds of countdown silence, then each spoken segment starts at its scene
+boundary. The authoring script rejects speech that exceeds its scene's time slot.
+No speech service, backend, secrets, or Windows dependency is needed at runtime.
+
+Preflight fully downloads the file, checks HTTP status/content type, and waits for
+browser decoding readiness. **Test Voice** plays the first 12 seconds of narration.
+**Start Recording** requests screen permission directly from the click and activates
+Web Audio in the same gesture. Before MediaRecorder starts, the decoded file is
+checked for duration and non-silent samples in all six scenes, and its output track
+must be live. Audio activation failures block final recording with an error message.
+
+An HTMLAudioElement feeds `AudioContext.createMediaElementSource`, then a gain node
+routes to both speakers and `MediaStreamAudioDestinationNode`. MediaRecorder receives
+the selected video track plus a clone of this explicit narration track. Captured tab
+or system audio is excluded to prevent echo; the recording does not depend on the
+browser's Share tab audio option. Narration playback time drives scenes/subtitles,
+so stalled or interrupted audio fails the run instead of producing a successful
+silent recording. Completion follows the end of the 178-second audio timeline.
+The browser may introduce a small recording lead-in and timer/encoder latency;
+this is not a frame-exact video editor.
+
+If the file cannot load, final recording is disabled. **Test Voice** and **Play Demo
+Without Recording** can use browser SpeechSynthesis with an English voice selector.
+The voice list refreshes on `voiceschanged`; missing voices, blocked playback,
+synthesis errors, and failure to start have explicit messages. You can also choose
+TTS preview while the asset is available. TTS preview starts immediately without the
+recording countdown to keep its first scene aligned; later utterances start at scene
+boundaries. Voice-dependent pacing may vary. TTS is never treated as recordable audio.
+
+Capture requires permission each run on localhost or HTTPS. Use a supporting desktop
+browser such as Chrome or Edge, keep the tab visible, and select this site's tab.
+Completion requests an automatic WebM or MP4 download using the supported MIME type.
+**Download Recording** remains available if automatic saving is blocked. **Stop**
+saves a partial recording; **Cancel** discards it. Original observatory state is
+preserved. Timers, speech, media tracks, audio nodes, contexts, and object URLs are
+cleaned up when the dialog unmounts; reusable narration resources are retained for
+replay while the dialog remains open. Nothing is uploaded.
 
 ### Exact local checks
 
 1. Run `npm run lint`, `npm test`, and `npm run build`.
 2. Run `npm run dev`; open `http://localhost:3000` in desktop Chrome or Edge.
 3. Change the observer/date, select an object, and adjust a module filter. Open
-   **Start Demo Recording** and verify duration, voice status, and support status.
+   **Start Demo Recording**, wait for the audio-file status, then click **Test Voice**.
+   Confirm audible English speech. Check the English TTS preview option and voice
+   selector separately, then turn it off to test the bundled narration.
 4. Click **Start Recording**, share this tab, and wait through countdown and all six
    scenes. Verify the actual app modules, changing calculated values, subtitles,
    progress, closing card, and automatic download request. Play the downloaded file
-   and confirm its extension and approximate 2:58 duration. Do not expect narration.
+   and confirm its extension, approximate 2:58 duration, spoken English in every scene,
+   and alignment with the visible subtitles. Repeat with Share tab audio disabled;
+   narration should still be present because it is mixed directly.
 5. Close the result dialog and verify your original state. Repeat using **Stop**,
    **Cancel**, **Replay**, denied permission, and the browser's native stop-sharing
    control. Canceled/failed runs must not offer a successful completed recording.
 6. Run `npm run preview -- --host 127.0.0.1 --port 4173` and repeat at
    `http://localhost:4173` to check the production bundle.
-7. Set `VITE_COMPETITION_DEMO=false` in `.env.local`, rebuild, and verify the demo
+7. Temporarily rename the public WAV and reload preflight: verify the explicit error,
+   disabled final recording, and working English TTS preview. Restore the WAV.
+8. Set `VITE_COMPETITION_DEMO=false` in `.env.local`, rebuild, and verify the demo
    entry point disappears while all five modules still work. Remove the override
    to re-enable it.
 
-Automated coverage includes scene boundaries, deadline completion, timer cleanup,
-cancellation, MIME selection, final chunk assembly, recorder failure, and native
-track-end notification. MediaRecorder is mocked in unit tests: these do not verify
-real browser capture or playback. Browser UI testing was unavailable in the coding
-session, so local capture, production-preview interaction, and HTTPS capture still
-require the manual checks above.
+Automated coverage includes the real WAV's duration and signal in every scene,
+audio-clock scheduling, timer cleanup, missing/HTML assets, silent or wrong-duration
+tracks, explicit audio/video mixing, required audio gating, TTS errors, cancellation,
+and recorder finalization. Browser APIs are mocked in unit tests. HTTP checks verified
+that development and production-preview URLs return the exact WAV with HTTP 200 and
+`audio/wav`. No browser was exposed in the coding session, so audible playback,
+downloaded video playback, and deployed HTTPS capture require the manual checks above.
 
 ### Vercel recording deployment
 
 Use the Vite settings above (`npm run build`, output `dist`). No backend or secrets
 are needed. The optional build-time environment variable `VITE_COMPETITION_DEMO`
 defaults to enabled; set it to `false` and redeploy to remove the entry point.
+The committed public WAV is copied into `dist/audio` by Vite; no Vercel environment
+variable or build-time speech generator is needed. After deployment, open
+`https://YOUR-VERCEL-DOMAIN/audio/competition-narration.en.wav` and verify audio plays.
 Deploy a preview and run the same permission/download checks on its HTTPS URL before
 promoting to production. Do not embed it in an iframe that denies display capture.
 See [MDN screen capture permissions and compatibility](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia)
