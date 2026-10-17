@@ -1,8 +1,38 @@
 [
-  { "start": 0, "end": 20, "title": "Introduction", "text": "Welcome to Zanzibar SkyLab. Explore the sky from Stone Town, six degrees south of the equator. This demonstration uses a fixed observing date, so every calculated view is reproducible." },
-  { "start": 20, "end": 55, "title": "Sky Explorer", "text": "This is the real Sky Explorer. Select a catalogued star to inspect its calculated altitude and azimuth. Altitude measures height above the horizon. Azimuth gives the direction around it. Both depend on the observer's location and observing time. The inspector connects the sky map to the underlying astronomical calculations." },
-  { "start": 55, "end": 90, "title": "Astronomical Time Lab", "text": "The Astronomical Time Lab lets us explore how the sky changes. Watch the observing time advance in ten minute steps. Earth's rotation changes the local directions of stars. Solar time follows the Sun, while sidereal time refers to the stars. These are different reference directions, and they help explain the changing sky." },
-  { "start": 90, "end": 125, "title": "Observation Planner", "text": "The Observation Planner turns calculations into practical observing choices. We switch from Jupiter to Sirius, then compare another observing date. Calculated altitude curves show how high a target rises during the night. Twilight times help identify darker observing periods. Weather, terrain, and light pollution still affect what an observer can actually see." },
-  { "start": 125, "end": 155, "title": "Moon Explorer and Object Directory", "text": "The Moon Explorer shows lunar geometry and illumination. Illumination alone does not guarantee that a thin crescent will be visible. Next, the Object Directory connects catalogued objects to calculated sky positions. Searching for Sirius demonstrates how a familiar star can be found in the working observatory." },
-  { "start": 155, "end": 175, "title": "Innovation and conclusion", "text": "Five connected observatory tools, with astronomy calculated locally in your browser. Zanzibar SkyLab connects exploration with observation planning. Explore, calculate, plan, and observe. Thank you for visiting." }
+  {
+    "start": 0,
+    "end": 20,
+    "title": "Introduction",
+    "text": "Welcome to Zanzibar SkyLab, our digital observatory from Stone Town, here in East Africa. We built it to help people understand the sky and plan what to observe. In the next three minutes, I'll show you five connected tools, powered by astronomy calculated right here in your browser."
+  },
+  {
+    "start": 20,
+    "end": 55,
+    "title": "Sky Explorer",
+    "text": "Let's begin with the sky above Zanzibar. This map uses a fixed observing date, so we can return to the same calculated view. When we select a star, the inspector tells us where to look. Altitude measures its angle above the horizon; azimuth gives its compass direction. Change the time or the observing location, and those directions change too. We're exploring a calculated sky, rather than a live telescope image. That makes the map a useful starting point for learning and observation outdoors."
+  },
+  {
+    "start": 55,
+    "end": 90,
+    "title": "Astronomical Time Lab",
+    "text": "Now let's explore time. Here, the same observing clock drives every module. Watch it advance in ten minute steps as the calculated positions respond. Earth's rotation makes stars appear to move across our local sky. The Time Lab also shows sidereal time, which follows a reference direction among the stars, rather than the Sun. Comparing these clocks helps explain why a star returns to the same place a little earlier each night. It's a practical, hands-on way to explore celestial motion for yourself."
+  },
+  {
+    "start": 90,
+    "end": 125,
+    "title": "Observation Planner",
+    "text": "When should we look? Our Observation Planner plots a target's altitude through the night. We begin with Jupiter, then select Sirius and compare another observing date. A higher target is often easier to observe because its light travels through less atmosphere. Twilight times help us find darker periods. These calculations cannot promise clear skies. Clouds, local terrain, and light pollution still matter. The planner helps us make informed choices before heading outside with our equipment."
+  },
+  {
+    "start": 125,
+    "end": 155,
+    "title": "Moon Explorer and Object Directory",
+    "text": "The Moon Explorer brings lunar geometry into view. The illuminated fraction tells us how much of the Moon's visible face is sunlit. But that number alone cannot guarantee a thin crescent sighting; conditions and the Moon's position matter too. Next, our Object Directory brings familiar names and calculated positions together. Search for Sirius, and its entry gives us a starting point for exploring that bright star in our night sky."
+  },
+  {
+    "start": 155,
+    "end": 175,
+    "title": "Innovation and conclusion",
+    "text": "What connects these tools is one shared observing time and location. Zanzibar SkyLab brings sky exploration, lunar science, and observation planning into one working interface. Our aim: make astronomy easier to understand and use. Thank you for joining us here in Zanzibar."
+  }
 ]

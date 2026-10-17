@@ -2,7 +2,7 @@
 import { COUNTDOWN, DemoFrame, frameAt, runTimeline, scenes } from './demoScenes';
 import { extensionFor, RecordingSession, recordingSupported, stopTracks } from './recordingService';
 import { DemoOverlay } from './DemoOverlay';
-import { englishVoices, NarrationAudio, NARRATION_URL, narrationStream, runNarratedTimeline, SpeechPreview } from './narrationService';
+import { englishVoices, NarrationAudio, NARRATION_URL, NARRATION_LABEL, narrationStream, runNarratedTimeline, SpeechPreview } from './narrationService';
 
 type Phase = 'preflight' | 'permission' | 'running' | 'finalizing' | 'finished' | 'error';
 export function DemoController({ onClose, onActive, renderObservatory }: { onClose: () => void; onActive: (active: boolean) => void; renderObservatory: (frame: DemoFrame) => React.ReactNode }) {
@@ -15,6 +15,7 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
   const [voiceUri, setVoiceUri] = useState('');
   const [previewTts, setPreviewTts] = useState(false);
   const [voiceLabel, setVoiceLabel] = useState('');
+  const [narrationFile, setNarrationFile] = useState<File | undefined>();
   const [download, setDownload] = useState<{ url: string; name: string } | null>(null);
   const session = useRef<RecordingSession | null>(null);
   const narration = useRef<NarrationAudio | null>(null);
@@ -29,14 +30,16 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
   const failureCallback = useRef<(message: string) => void>(() => {});
   activeCallback.current = onActive;
   const selectedVoice = voices.find(voice => voice.voiceURI === voiceUri) || voices.find(voice => voice.default) || voices[0];
+  const trackLabel = narrationFile ? `Local narration: ${narrationFile.name}` : NARRATION_LABEL;
   const clearDownload = () => { if (url.current) URL.revokeObjectURL(url.current); url.current = null; setDownload(null); };
   useEffect(() => {
     let disposed = false;
+    setAudioStatus('loading'); setVoiceError('');
     const audio = new NarrationAudio(text => {
       if (disposed) return;
       setVoiceError(text); setAudioStatus('error');
       if (busy.current) failureCallback.current(text);
-    });
+    }, narrationFile);
     narration.current = audio;
     void audio.load().then(() => { if (!disposed) setAudioStatus('ready'); }).catch(error => {
       if (!disposed) { setAudioStatus('error'); setVoiceError(`${error instanceof Error ? error.message : 'Audio load failed.'} Final recording is disabled. Use English TTS preview or reload to retry.`); }
@@ -50,7 +53,7 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
       if (url.current) URL.revokeObjectURL(url.current);
       activeCallback.current(false);
     };
-  }, []);
+  }, [narrationFile]);
   function stopVoice() { narration.current?.stop(); speech.current?.stop(); }
   function fail(text: string) {
     generation.current++; cancelTimer.current?.(); stopVoice();
@@ -77,7 +80,7 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
     setPhase('finished');
   }
   function playWithAudio() {
-    setVoiceLabel('English narration - audio track connected');
+    setVoiceLabel(`${trackLabel} - audio track connected`);
     onActive(true); setPhase('running');
     cancelTimer.current = runNarratedTimeline(narration.current!, setElapsed, () => { void finish(true, true); }, fail);
   }
@@ -157,10 +160,18 @@ export function DemoController({ onClose, onActive, renderObservatory }: { onClo
   return <div className="demo-backdrop"><section role="dialog" aria-modal="true" aria-labelledby="demo-title" className="demo-dialog">
     <h2 id="demo-title">Zanzibar SkyLab</h2><h3>Automated Competition Recording</h3>
     {(phase === 'preflight' || phase === 'error') && <>
-      <p><strong>2:55 presentation</strong> + {COUNTDOWN}-second recorded countdown. Recommended: a 16:9 browser window at 1920 x 1080.</p>
+      <p><strong>2:55 presentation</strong>, including introduction and conclusion, with no recorded countdown. Recommended: a 16:9 browser window at 1920 x 1080.</p>
       <p>In the sharing picker, select <strong>This Tab</strong> (or this site under Chrome Tab). Narration is mixed directly into the recording; sharing tab audio is optional. Keep this tab visible.</p>
-      <p role="status">English narration: <strong>{audioStatus === 'loading' ? 'loading audio file...' : audioStatus === 'ready' ? 'file loaded; audio activation checked on start' : 'audio file unavailable'}</strong>. <a href={NARRATION_URL} target="_blank" rel="noreferrer">Open narration file</a></p>
-      <p>Final recording requires the bundled English audio track. Browser TTS is for preview only and is never assumed to be captured.</p>
+      <p role="status">English narration: <strong>{audioStatus === 'loading' ? 'loading audio file...' : audioStatus === 'ready' ? 'file loaded; timing, silence and audio activation checked on start' : 'audio file unavailable'}</strong>. {!narrationFile && <a href={NARRATION_URL} target="_blank" rel="noreferrer">Open narration file</a>}</p>
+      <p>{trackLabel}. Voice quality and pronunciation must be reviewed by listening; technical checks do not certify a professional performance.</p>
+      <label className="block">Use your professional MP3 or WAV (175 seconds)
+        <input className="block mt-2" type="file" accept=".mp3,.wav,audio/mpeg,audio/wav" disabled={busy.current} onChange={event => {
+          const file = event.target.files?.[0]; if (!file) return;
+          stopVoice(); clearDownload(); setPreviewTts(false); setNarrationFile(file);
+        }} />
+      </label>
+      {narrationFile && <button onClick={() => { stopVoice(); clearDownload(); setNarrationFile(undefined); }}>Restore bundled track</button>}
+      <p>Your selected file stays on this device. Match the six scene starts: 0:00, 0:20, 0:55, 1:30, 2:05, 2:35. Final recording requires ready prerecorded audio. Browser TTS is preview only.</p>
       <label><input type="checkbox" checked={previewTts} onChange={event => { stopVoice(); setPreviewTts(event.target.checked); }} /> Use browser English TTS for preview / Test Voice</label>
       <label className="block mt-3">Preview voice <select className="bg-slate-800 p-2 rounded max-w-full" value={selectedVoice?.voiceURI || ''} onChange={event => { speech.current?.stop(); setVoiceUri(event.target.value); }}><option value="" disabled>No English voice loaded</option>{voices.map(voice => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} ({voice.lang})</option>)}</select></label>
       {!selectedVoice && <p>No English browser voice is loaded. Install an English system voice and reload to use TTS preview. The bundled recording voice does not depend on browser voices.</p>}

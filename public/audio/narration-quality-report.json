@@ -1,0 +1,222 @@
+{
+  "file": "public/audio/competition-narration.en.wav",
+  "duration_seconds": 175.0,
+  "sample_rate": 22050,
+  "channels": 1,
+  "threshold_dbfs": -50,
+  "window_ms": 20,
+  "longest_silence_seconds": 1.42,
+  "gaps_over_1_5_seconds": [],
+  "pauses_over_0_5_seconds": [
+    {
+      "start": 5.98,
+      "end": 6.86,
+      "duration": 0.88
+    },
+    {
+      "start": 10.8,
+      "end": 11.56,
+      "duration": 0.76
+    },
+    {
+      "start": 18.86,
+      "end": 20.08,
+      "duration": 1.22
+    },
+    {
+      "start": 22.24,
+      "end": 23.14,
+      "duration": 0.9
+    },
+    {
+      "start": 28.32,
+      "end": 29.22,
+      "duration": 0.9
+    },
+    {
+      "start": 32.72,
+      "end": 33.5,
+      "duration": 0.78
+    },
+    {
+      "start": 38.28,
+      "end": 39.14,
+      "duration": 0.86
+    },
+    {
+      "start": 43.36,
+      "end": 44.24,
+      "duration": 0.88
+    },
+    {
+      "start": 48.36,
+      "end": 49.28,
+      "duration": 0.92
+    },
+    {
+      "start": 53.86,
+      "end": 55.08,
+      "duration": 1.22
+    },
+    {
+      "start": 56.64,
+      "end": 57.46,
+      "duration": 0.82
+    },
+    {
+      "start": 60.72,
+      "end": 61.54,
+      "duration": 0.82
+    },
+    {
+      "start": 65.68,
+      "end": 66.48,
+      "duration": 0.8
+    },
+    {
+      "start": 70.22,
+      "end": 71.12,
+      "duration": 0.9
+    },
+    {
+      "start": 83.34,
+      "end": 84.12,
+      "duration": 0.78
+    },
+    {
+      "start": 88.78,
+      "end": 90.2,
+      "duration": 1.42
+    },
+    {
+      "start": 91.16,
+      "end": 91.94,
+      "duration": 0.78
+    },
+    {
+      "start": 95.66,
+      "end": 96.54,
+      "duration": 0.88
+    },
+    {
+      "start": 101.16,
+      "end": 101.9,
+      "duration": 0.74
+    },
+    {
+      "start": 106.58,
+      "end": 107.38,
+      "duration": 0.8
+    },
+    {
+      "start": 110.44,
+      "end": 111.36,
+      "duration": 0.92
+    },
+    {
+      "start": 114.14,
+      "end": 114.98,
+      "duration": 0.84
+    },
+    {
+      "start": 118.54,
+      "end": 119.46,
+      "duration": 0.92
+    },
+    {
+      "start": 124.2,
+      "end": 125.24,
+      "duration": 1.04
+    },
+    {
+      "start": 128.12,
+      "end": 129.04,
+      "duration": 0.92
+    },
+    {
+      "start": 133.66,
+      "end": 134.56,
+      "duration": 0.9
+    },
+    {
+      "start": 140.64,
+      "end": 141.42,
+      "duration": 0.78
+    },
+    {
+      "start": 146.8,
+      "end": 147.58,
+      "duration": 0.78
+    },
+    {
+      "start": 154.02,
+      "end": 155.2,
+      "duration": 1.18
+    },
+    {
+      "start": 159.02,
+      "end": 159.8,
+      "duration": 0.78
+    },
+    {
+      "start": 166.88,
+      "end": 167.66,
+      "duration": 0.78
+    },
+    {
+      "start": 170.98,
+      "end": 171.8,
+      "duration": 0.82
+    },
+    {
+      "start": 174.14,
+      "end": 175.0,
+      "duration": 0.86
+    }
+  ],
+  "scenes": [
+    {
+      "title": "Introduction",
+      "start": 0,
+      "end": 20,
+      "words": 48,
+      "words_per_minute_including_pauses": 144.0
+    },
+    {
+      "title": "Sky Explorer",
+      "start": 20,
+      "end": 55,
+      "words": 83,
+      "words_per_minute_including_pauses": 142.3
+    },
+    {
+      "title": "Astronomical Time Lab",
+      "start": 55,
+      "end": 90,
+      "words": 83,
+      "words_per_minute_including_pauses": 142.3
+    },
+    {
+      "title": "Observation Planner",
+      "start": 90,
+      "end": 125,
+      "words": 75,
+      "words_per_minute_including_pauses": 128.6
+    },
+    {
+      "title": "Moon Explorer and Object Directory",
+      "start": 125,
+      "end": 155,
+      "words": 70,
+      "words_per_minute_including_pauses": 140.0
+    },
+    {
+      "title": "Innovation and conclusion",
+      "start": 155,
+      "end": 175,
+      "words": 42,
+      "words_per_minute_including_pauses": 126.0
+    }
+  ],
+  "listening_review": "Pending. Signal analysis cannot establish pronunciation or human-like delivery."
+}

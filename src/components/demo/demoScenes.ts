@@ -3,7 +3,8 @@ export const DEMO_ENABLED = import.meta.env.VITE_COMPETITION_DEMO !== 'false';
 
 export const DURATION = 175;
 
-export const COUNTDOWN = 3;
+// The complete presentation is 175 seconds; no recorded countdown or lead-in.
+export const COUNTDOWN = 0;
 
 export type DemoTab = 'sky' | 'timelab' | 'planner' | 'moon' | 'objects';
 

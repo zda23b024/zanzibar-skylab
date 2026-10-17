@@ -37,7 +37,8 @@ The bright-star catalog records identify Yale Bright Star Catalog (BSC5) and Hip
 ## Automated competition recording (optional)
 
 The header's **Start Demo Recording** opens a preflight dialog. The presentation lasts
-175 seconds, preceded by a recorded 3-second countdown (approximately 2:58 of video).
+175 seconds with no recorded countdown. The audio master is exactly 2:55; browser
+encoding and timer latency may add a small amount to the downloaded container.
 The six scenes use the existing Observatory components and astronomy engine, with
 Stone Town and a fixed initial date of 2026-01-15 21:00 EAT. Scheduled actions select
 a star, advance simulation time, select a planner target, change the observing day,
@@ -57,16 +58,29 @@ respected). It was generated locally with the installed Microsoft Hazel Desktop
 English voice, using `scripts/generate-demo-narration.ps1`. It is synthesized speech,
 not a human recording. The original script lives in
 `src/components/demo/narrationScript.json`, also used for the scene subtitles.
-The WAV is mono 22,050 Hz, 16-bit PCM, 178 seconds, approximately 7.85 MB. It includes
-three seconds of countdown silence, then each spoken segment starts at its scene
-boundary. The authoring script rejects speech that exceeds its scene's time slot.
+The current WAV is a **basic system-voice timing draft**, not a professional or
+human-like voice upgrade. It is mono 22,050 Hz, 16-bit PCM, exactly 175 seconds,
+approximately 7.72 MB. Each spoken section begins at its scene boundary. The authoring
+script rejects speech that exceeds its slot; no playback-rate change or time-stretch
+is used. The revised script reduces the longest detected silence from 10.12 to 1.42
+seconds (-50 dBFS RMS, 20 ms windows). The system voice still has sentence pauses
+around 0.7?0.9 seconds, beyond the preferred professional target of 0.2?0.5 seconds.
+The final professional performance is awaiting the user-supplied audio.
+
+See [NARRATION-BRIEF.md](NARRATION-BRIEF.md) for the full timed script, delivery brief,
+pronunciation review list, replacement instructions, and acceptance checks. The file
+picker in preflight accepts a private local MP3/WAV; it is never uploaded. To deploy
+a replacement, put it in `public/audio/`, set `VITE_DEMO_NARRATION_PATH` to its relative
+path and `VITE_DEMO_NARRATION_LABEL` to its accurate description, then rebuild.
+Both settings are public build-time strings, not secret keys.
 No speech service, backend, secrets, or Windows dependency is needed at runtime.
 
 Preflight fully downloads the file, checks HTTP status/content type, and waits for
 browser decoding readiness. **Test Voice** plays the first 12 seconds of narration.
 **Start Recording** requests screen permission directly from the click and activates
 Web Audio in the same gesture. Before MediaRecorder starts, the decoded file is
-checked for duration and non-silent samples in all six scenes, and its output track
+checked for 175-second duration (50 ms decoder tolerance), non-silent samples in all
+six scenes, and no silent gap over 1.5 seconds. Stereo channels are checked together. Its output track
 must be live. Audio activation failures block final recording with an error message.
 
 An HTMLAudioElement feeds `AudioContext.createMediaElementSource`, then a gain node
@@ -75,7 +89,7 @@ the selected video track plus a clone of this explicit narration track. Captured
 or system audio is excluded to prevent echo; the recording does not depend on the
 browser's Share tab audio option. Narration playback time drives scenes/subtitles,
 so stalled or interrupted audio fails the run instead of producing a successful
-silent recording. Completion follows the end of the 178-second audio timeline.
+silent recording. Completion follows the end of the 175-second audio timeline.
 The browser may introduce a small recording lead-in and timer/encoder latency;
 this is not a frame-exact video editor.
 
@@ -104,10 +118,10 @@ replay while the dialog remains open. Nothing is uploaded.
    **Start Demo Recording**, wait for the audio-file status, then click **Test Voice**.
    Confirm audible English speech. Check the English TTS preview option and voice
    selector separately, then turn it off to test the bundled narration.
-4. Click **Start Recording**, share this tab, and wait through countdown and all six
+4. Click **Start Recording**, share this tab, and wait through all six
    scenes. Verify the actual app modules, changing calculated values, subtitles,
    progress, closing card, and automatic download request. Play the downloaded file
-   and confirm its extension, approximate 2:58 duration, spoken English in every scene,
+   and confirm its extension, approximately 2:55 duration, spoken English in every scene,
    and alignment with the visible subtitles. Repeat with Share tab audio disabled;
    narration should still be present because it is mixed directly.
 5. Close the result dialog and verify your original state. Repeat using **Stop**,
@@ -120,6 +134,10 @@ replay while the dialog remains open. Nothing is uploaded.
 8. Set `VITE_COMPETITION_DEMO=false` in `.env.local`, rebuild, and verify the demo
    entry point disappears while all five modules still work. Remove the override
    to re-enable it.
+
+Run `python scripts/analyze-narration.py` to measure the current WAV; the saved report
+is `public/audio/narration-quality-report.json`. This is signal analysis, not listening
+review. It cannot certify natural delivery or pronunciation.
 
 Automated coverage includes the real WAV's duration and signal in every scene,
 audio-clock scheduling, timer cleanup, missing/HTML assets, silent or wrong-duration

@@ -4,11 +4,12 @@ Add-Type -AssemblyName System.Speech
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $manifest = Get-Content (Join-Path $projectRoot 'src/components/demo/narrationScript.json') -Raw | ConvertFrom-Json
 $rate = 22050
-$pcm = New-Object byte[] (178 * $rate * 2)
+$pcm = New-Object byte[] (175 * $rate * 2)
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
 try {
   $synth.SelectVoice('Microsoft Hazel Desktop')
-  $synth.Rate = 0
+  $synth.Rate = 1
+  $tooLong = $false
   foreach ($scene in $manifest) {
     $memory = New-Object System.IO.MemoryStream
     try {
@@ -17,12 +18,13 @@ try {
       $synth.Speak($scene.text)
       $bytes = $memory.ToArray()
       $slot = ($scene.end - $scene.start) * $rate * 2
-      if ($bytes.Length -gt $slot) { throw "Narration exceeds scene: $($scene.title)" }
-      [Array]::Copy($bytes, 0, $pcm, (($scene.start + 3) * $rate * 2), $bytes.Length)
+      if ($bytes.Length -gt $slot) { Write-Output "OVERFLOW $($scene.title): $([math]::Round($bytes.Length / ($rate * 2), 2)) seconds"; $tooLong = $true; continue }
+      [Array]::Copy($bytes, 0, $pcm, ($scene.start * $rate * 2), $bytes.Length)
       Write-Output "$($scene.title): $([math]::Round($bytes.Length / ($rate * 2), 2)) seconds"
     } finally { $memory.Dispose() }
   }
 } finally { $synth.Dispose() }
+if ($tooLong) { throw 'Shorten overflowing scenes before generating the timing draft.' }
 $output = Join-Path $projectRoot 'public/audio/competition-narration.en.wav'
 $writer = New-Object System.IO.BinaryWriter([System.IO.File]::Create($output))
 try {

@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { englishVoices, narrationStream, NARRATION_URL, runNarratedTimeline, SpeechPreview, validateNarration, NarrationAudio } from '../components/demo/narrationService';
+import { englishVoices, narrationStream, NARRATION_URL, runNarratedTimeline, SpeechPreview, validateNarration, silenceGaps, NarrationAudio } from '../components/demo/narrationService';
 import { RecordingSession } from '../components/demo/recordingService';
 import { scenes } from '../components/demo/demoScenes';
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('bundled English narration', () => {
-  it('ships real PCM speech in every synchronized scene and a silent countdown', () => {
+  it('ships a 175-second timing draft with speech in every scene and no long gaps', () => {
     const bytes = readFileSync(new URL('../../public/audio/competition-narration.en.wav', import.meta.url));
     expect(bytes.toString('ascii', 0, 4)).toBe('RIFF');
     expect(bytes.toString('ascii', 8, 12)).toBe('WAVE');
@@ -15,25 +15,33 @@ describe('bundled English narration', () => {
     expect(bytes.readUInt16LE(34)).toBe(16);
     const rate = bytes.readUInt32LE(24);
     const samples = Float32Array.from({ length: (bytes.length - 44) / 2 }, (_, i) => bytes.readInt16LE(44 + i * 2) / 32768);
-    expect(samples.length / rate).toBe(178);
-    expect(samples.slice(0, rate * 3).every(value => value === 0)).toBe(true);
-    expect(() => validateNarration({ duration: 178, sampleRate: rate, getChannelData: () => samples } as unknown as AudioBuffer)).not.toThrow();
+    expect(samples.length / rate).toBe(175);
+    expect(() => validateNarration({ duration: 175, numberOfChannels: 1, sampleRate: rate, getChannelData: () => samples } as unknown as AudioBuffer)).not.toThrow();
     expect(scenes.map(scene => scene.end)).toEqual([20, 55, 90, 125, 155, 175]);
     expect(NARRATION_URL).toBe('/audio/competition-narration.en.wav');
   });
   it('rejects silence and a mismatched duration before recording', () => {
-    expect(() => validateNarration({ duration: 10 } as AudioBuffer)).toThrow('duration');
-    expect(() => validateNarration({ duration: 178, sampleRate: 1, getChannelData: () => new Float32Array(178) } as unknown as AudioBuffer)).toThrow('silent');
+    expect(() => validateNarration({ duration: 10 } as AudioBuffer)).toThrow('175 seconds');
+    expect(() => validateNarration({ duration: 175, numberOfChannels: 1, sampleRate: 1, getChannelData: () => new Float32Array(175) } as unknown as AudioBuffer)).toThrow('silent');
+  });
+  it('rejects long silent gaps and handles right-channel-only narration', () => {
+    const right = new Float32Array(17500).fill(0.1);
+    const left = new Float32Array(17500);
+    const buffer = { duration: 175, numberOfChannels: 2, sampleRate: 100, getChannelData: (channel: number) => channel ? right : left } as unknown as AudioBuffer;
+    expect(() => validateNarration(buffer)).not.toThrow();
+    right.fill(0, 1000, 1200);
+    expect(silenceGaps(buffer)).toEqual([{ start: 10, end: 12, duration: 2 }]);
+    expect(() => validateNarration(buffer)).toThrow('2.00 seconds of silence');
   });
 });
 describe('audio-clock scene scheduling', () => {
   it('follows audio position, completes at the actual end, and clears timers', () => {
     vi.useFakeTimers(); const audio = { time: 0, healthy: true }; const tick = vi.fn(); const done = vi.fn(); const fail = vi.fn();
     runNarratedTimeline(audio, tick, done, fail);
-    expect(tick).toHaveBeenLastCalledWith(-3);
-    audio.time = 58; vi.advanceTimersByTime(50); expect(tick).toHaveBeenLastCalledWith(55);
-    audio.time = 177.99; vi.advanceTimersByTime(50); expect(done).not.toHaveBeenCalled();
-    audio.time = 178; vi.advanceTimersByTime(50); expect(done).toHaveBeenCalledOnce();
+    expect(tick).toHaveBeenLastCalledWith(0);
+    audio.time = 55; vi.advanceTimersByTime(50); expect(tick).toHaveBeenLastCalledWith(55);
+    audio.time = 174.99; vi.advanceTimersByTime(50); expect(done).not.toHaveBeenCalled();
+    audio.time = 175; vi.advanceTimersByTime(50); expect(done).toHaveBeenCalledOnce();
     expect(fail).not.toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(0);
   });
   it('fails on stalled or suspended audio instead of saving silent video', () => {

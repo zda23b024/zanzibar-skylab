@@ -1,16 +1,45 @@
 import { COUNTDOWN, DURATION, scenes } from './demoScenes';
 
-export const NARRATION_URL = `${import.meta.env.BASE_URL}audio/competition-narration.en.wav`;
+// A public path only: never put credentials or a paid speech API in the client.
+export const NARRATION_URL = `${import.meta.env.BASE_URL}${(import.meta.env.VITE_DEMO_NARRATION_PATH || 'audio/competition-narration.en.wav').replace(/^\/+/, '')}`;
+export const NARRATION_LABEL = import.meta.env.VITE_DEMO_NARRATION_LABEL || 'System voice timing draft (Microsoft Hazel); professional track pending';
+
+export function silenceGaps(buffer: AudioBuffer, threshold = 0.0031623) {
+  // 20 ms RMS windows, -50 dBFS threshold; all channels count, not just the left.
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
+  const step = Math.max(1, Math.round(buffer.sampleRate * 0.02));
+  const samples = channels[0]?.length ?? 0;
+  const gaps: { start: number; end: number; duration: number }[] = [];
+  let start: number | undefined;
+  for (let offset = 0; offset < samples; offset += step) {
+    const end = Math.min(samples, offset + step);
+    let loudest = 0;
+    for (const channel of channels) {
+      let energy = 0;
+      for (let i = offset; i < end; i++) energy += channel[i] ** 2;
+      loudest = Math.max(loudest, Math.sqrt(energy / (end - offset)));
+    }
+    if (loudest < threshold && start === undefined) start = offset / buffer.sampleRate;
+    if (loudest >= threshold && start !== undefined) {
+      const end = offset / buffer.sampleRate;
+      gaps.push({ start, end, duration: end - start }); start = undefined;
+    }
+  }
+  if (start !== undefined) gaps.push({ start, end: buffer.duration, duration: buffer.duration - start });
+  return gaps;
+}
 export function validateNarration(buffer: AudioBuffer) {
-  if (Math.abs(buffer.duration - (DURATION + COUNTDOWN)) > 0.15) throw new Error('Narration duration does not match the 178-second recording timeline.');
-  const samples = buffer.getChannelData(0);
+  if (Math.abs(buffer.duration - DURATION) > 0.05) throw new Error('Narration must be 175 seconds (2:55), without a countdown. Export a 175-second master; WAV avoids MP3 encoder padding.');
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
   for (const scene of scenes) {
     let energy = 0;
-    const begin = Math.floor((COUNTDOWN + scene.start) * buffer.sampleRate);
-    const end = Math.min(samples.length, Math.floor((COUNTDOWN + scene.end) * buffer.sampleRate));
-    for (let i = begin; i < end; i++) energy += samples[i] * samples[i];
-    if (Math.sqrt(energy / (end - begin)) < 0.001) throw new Error(`Narration is silent in scene: ${scene.title}.`);
+    const begin = Math.floor(scene.start * buffer.sampleRate);
+    const end = Math.min(channels[0]?.length ?? 0, Math.floor(scene.end * buffer.sampleRate));
+    for (const samples of channels) for (let i = begin; i < end; i++) energy += samples[i] * samples[i];
+    if (!channels.length || end <= begin || Math.sqrt(energy / ((end - begin) * channels.length)) < 0.001) throw new Error(`Narration is silent in scene: ${scene.title}.`);
   }
+  const gap = silenceGaps(buffer).find(gap => gap.duration > 1.5);
+  if (gap) throw new Error(`Narration contains ${gap.duration.toFixed(2)} seconds of silence at ${gap.start.toFixed(2)}s. Keep pauses under 1.5 seconds and preserve scene boundaries.`);
 }
 
 /** One fully downloaded local asset, routed to speakers AND an explicit recorder track. */
@@ -29,17 +58,23 @@ export class NarrationAudio {
   private verified = false;
   private testTimer?: ReturnType<typeof setTimeout>;
   private preparationCancel?: () => void;
-  constructor(private onFailure: (message: string) => void) {
+  constructor(private onFailure: (message: string) => void, private file?: File) {
     this.audio.preload = 'auto';
     this.audio.onerror = () => onFailure(`Narration playback failed (media error ${this.audio.error?.code ?? 'unknown'}). Check ${NARRATION_URL}.`);
   }
   async load() {
     const timeout = setTimeout(() => this.abort.abort(), 30000);
     try {
-      const response = await fetch(NARRATION_URL, { signal: this.abort.signal });
-      if (!response.ok) throw new Error(`Narration file ${NARRATION_URL} returned HTTP ${response.status}.`);
-      const blob = await response.blob();
-      if (!blob.type.startsWith('audio/')) throw new Error(`Expected audio at ${NARRATION_URL}, received ${blob.type || 'no content type'}. Check the public asset and Vercel routing.`);
+      let blob: Blob;
+      if (this.file) {
+        if (!/\.(mp3|wav)$/i.test(this.file.name)) throw new Error('Choose an MP3 or WAV narration file.');
+        blob = this.file;
+      } else {
+        const response = await fetch(NARRATION_URL, { signal: this.abort.signal });
+        if (!response.ok) throw new Error(`Narration file ${NARRATION_URL} returned HTTP ${response.status}.`);
+        blob = await response.blob();
+        if (!blob.type.startsWith('audio/')) throw new Error(`Expected audio at ${NARRATION_URL}, received ${blob.type || 'no content type'}. Check the public asset and Vercel routing.`);
+      }
       this.bytes = await blob.arrayBuffer();
       if (this.disposed) throw new Error('Narration loading canceled.');
       this.objectUrl = URL.createObjectURL(blob);
@@ -52,7 +87,7 @@ export class NarrationAudio {
           error ? reject(error) : resolve();
         };
         const ready = () => done();
-        const failed = () => done(new Error('The browser cannot decode the narration WAV.'));
+        const failed = () => done(new Error('The browser cannot decode this narration file. Try a PCM WAV or standard MP3.'));
         const aborted = () => done(new Error('Narration loading timed out or was canceled.'));
         this.loadCancel = aborted;
         this.audio.addEventListener('canplaythrough', ready);
@@ -103,7 +138,7 @@ export class NarrationAudio {
     if (this.context.state !== 'running' || !this.track || this.track.readyState !== 'live') throw new Error('The browser did not activate the narration audio track. Click Test Voice and check audio permissions.');
   }
   get track() { return this.destination?.stream.getAudioTracks()[0]; }
-  get time() { return this.audio.currentTime; }
+  get time() { return Math.min(DURATION, this.audio.ended ? DURATION : this.audio.currentTime); }
   get healthy() { return this.context?.state === 'running' && this.track?.readyState === 'live' && !this.audio.error; }
   async start() {
     if (!this.healthy || !this.verified) throw new Error('Narration audio is not ready for recording.');
