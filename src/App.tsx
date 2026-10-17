@@ -15,7 +15,8 @@ import { TimeLab } from './components/timelab/TimeLab';
 import { ScientificInfoModal } from './components/layout/ScientificInfoModal';
 import { AboutModal } from './components/layout/AboutModal';
 import { SettingsModal } from './components/layout/SettingsModal';
-import { CompetitionDemo } from './components/demo/CompetitionDemo';
+import { DemoController } from './components/demo/DemoController';
+import { DEMO_ENABLED, DemoFrame } from './components/demo/demoScenes';
 
 import { DEFAULT_OBSERVER } from './data/locations';
 import { ObserverLocation, CalculatedBody } from './data/types';
@@ -23,6 +24,18 @@ import { computeSkyState, buildObservationPlan } from './astronomy/engine';
 import { Sparkles, Telescope, Compass, BookOpen, Moon, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function App() {
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoActive, setDemoActive] = useState(false);
+  return <>
+    <div style={{ visibility: demoActive ? 'hidden' : 'visible' }} inert={demoOpen}>
+      <Observatory suspended={demoOpen} onStartDemo={DEMO_ENABLED ? () => setDemoOpen(true) : undefined} />
+    </div>
+    {DEMO_ENABLED && demoOpen && <DemoController onClose={() => setDemoOpen(false)} onActive={setDemoActive}
+      renderObservatory={frame => <Observatory demoFrame={frame} />} />}
+  </>;
+}
+
+function Observatory({ suspended = false, demoFrame, onStartDemo }: { suspended?: boolean; demoFrame?: DemoFrame; onStartDemo?: () => void }) {
   // Navigation & View state - 5 Professional Observatory Modules
   const [activeTab, setActiveTab] = useState<'sky' | 'planner' | 'objects' | 'timelab' | 'moon'>('sky');
 
@@ -41,7 +54,7 @@ export default function App() {
   const [isScientificInfoOpen, setIsScientificInfoOpen] = useState<boolean>(false);
   const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [isDemoOpen, setIsDemoOpen] = useState<boolean>(false);
+
 
   // Appearance & Localization
   const [nightMode, setNightMode] = useState<boolean>(false);
@@ -53,6 +66,8 @@ export default function App() {
   // High-performance time simulation tick
   const lastTickTimeRef = useRef<number>(performance.now());
   useEffect(() => {
+    if (suspended || demoFrame) return;
+    lastTickTimeRef.current = performance.now();
     let animId: number;
 
     const tick = (now: number) => {
@@ -72,7 +87,16 @@ export default function App() {
 
     animId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animId);
-  }, [isPlaying, timeSpeed]);
+  }, [isPlaying, timeSpeed, suspended, !!demoFrame]);
+
+  // Drive the same state APIs as the interactive controls; never substitute scientific values.
+  useEffect(() => {
+    if (!demoFrame) return;
+    setActiveTab(demoFrame.tab);
+    setCurrentDate(previous => previous.getTime() === demoFrame.date.getTime() ? previous : demoFrame.date);
+    setDismissHero(true);
+    setTimeSpeed(600);
+  }, [demoFrame?.tab, demoFrame?.date.getTime()]);
 
   // Compute live sky state using astronomy-engine
   const skyState = useMemo(() => {
@@ -89,6 +113,10 @@ export default function App() {
     return skyState.stars.find(s => s.id === 'HR 2061') || skyState.stars[0] || null;
   }, [skyState.stars]);
 
+  useEffect(() => {
+    if (demoFrame) setSelectedObject(demoFrame.selectStar ? sampleStar : null);
+  }, [demoFrame?.selectStar, sampleStar]);
+
   return (
     <div className={`w-screen h-screen flex flex-col overflow-hidden ${nightMode ? 'bg-[#0d0000]' : 'bg-[#060913]'}`}>
       {/* Header Navigation */}
@@ -100,7 +128,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenScientificInfo={() => setIsScientificInfoOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
-        onStartDemo={() => setIsDemoOpen(true)}
+        onStartDemo={onStartDemo}
         nightMode={nightMode}
         language={language}
       />
@@ -131,12 +159,6 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => setIsDemoOpen(true)}
-                    className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors whitespace-nowrap cursor-pointer"
-                  >
-                    {language === 'sw' ? 'Onyesho' : 'Quick Demo'}
-                  </button>
                   <button
                     onClick={() => setDismissHero(true)}
                     className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors cursor-pointer"
@@ -185,6 +207,7 @@ export default function App() {
         {activeTab === 'planner' && (
           <div className="w-full h-full overflow-y-auto p-4 md:p-8">
             <ObservationPlanner
+              demoObjectId={demoFrame ? (demoFrame.elapsed >= 100 ? 'HR 2491' : 'jupiter') : undefined}
               targets={observationTargets}
               twilight={skyState.twilight}
               observer={observer}
@@ -200,6 +223,7 @@ export default function App() {
         {activeTab === 'objects' && (
           <div className="w-full h-full overflow-y-auto p-4 md:p-8">
             <ObjectExplorer
+              demoSearch={demoFrame ? (demoFrame.elapsed >= 147 ? 'Sirius' : '') : undefined}
               sun={skyState.sun}
               moon={skyState.moon}
               planets={skyState.planets}
@@ -266,18 +290,7 @@ export default function App() {
         onChangeLanguage={setLanguage}
       />
 
-      <CompetitionDemo
-        isOpen={isDemoOpen}
-        onClose={() => setIsDemoOpen(false)}
-        onNavigateView={setActiveTab}
-        onSelectObject={setSelectedObject}
-        sampleStar={sampleStar}
-        onTriggerTimeSpeed={speed => {
-          setTimeSpeed(speed);
-          setIsPlaying(true);
-        }}
-        language={language}
-      />
+
     </div>
   );
 }

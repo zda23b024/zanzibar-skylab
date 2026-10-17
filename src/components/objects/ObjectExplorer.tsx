@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CalculatedBody, Constellation } from '../../data/types';
 import { CONSTELLATIONS } from '../../data/constellations';
 import { Search, Compass, Eye, EyeOff, Sparkles, Telescope, ArrowUpRight, Globe2, AlertCircle } from 'lucide-react';
 
 interface ObjectExplorerProps {
+  demoSearch?: string;
   sun: CalculatedBody;
   moon: CalculatedBody;
   planets: CalculatedBody[];
@@ -13,6 +14,7 @@ interface ObjectExplorerProps {
 }
 
 export const ObjectExplorer: React.FC<ObjectExplorerProps> = ({
+  demoSearch,
   sun,
   moon,
   planets,
@@ -22,6 +24,7 @@ export const ObjectExplorer: React.FC<ObjectExplorerProps> = ({
 }) => {
   const isSw = language === 'sw';
   const [searchTerm, setSearchTerm] = useState<string>('');
+  useEffect(() => { if (demoSearch !== undefined) setSearchTerm(demoSearch); }, [demoSearch]);
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'planets' | 'stars' | 'constellations'>('all');
   const [horizonFilter, setHorizonFilter] = useState<'all' | 'above'>('all');
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ObservationTarget, TwilightTimes, ObserverLocation, CalculatedBody } from '../../data/types';
 import { computeObjectEphemerisCurve, computeLocationNetworkComparison } from '../../astronomy/engine';
 import { OBSERVER_PRESETS } from '../../data/locations';
@@ -6,6 +6,7 @@ import { BRIGHT_STAR_CATALOG } from '../../data/stars';
 import { Sun, Moon, Sparkles, Clock, AlertCircle, Compass, LineChart, CheckCircle2, ChevronRight, Eye, MapPin, Globe2 } from 'lucide-react';
 
 interface ObservationPlannerProps {
+  demoObjectId?: string;
   targets: ObservationTarget[];
   twilight: TwilightTimes;
   observer: ObserverLocation;
@@ -34,6 +35,7 @@ const SELECTABLE_OBJECTS = [
 ];
 
 export const ObservationPlanner: React.FC<ObservationPlannerProps> = ({
+  demoObjectId,
   targets,
   twilight,
   observer,
@@ -44,6 +46,7 @@ export const ObservationPlanner: React.FC<ObservationPlannerProps> = ({
 }) => {
   const isSw = language === 'sw';
   const [selectedObjectId, setSelectedObjectId] = useState<string>('jupiter');
+  useEffect(() => { if (demoObjectId !== undefined) setSelectedObjectId(demoObjectId); }, [demoObjectId]);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   // Compute ephemeris curve strictly from real astronomical calculations

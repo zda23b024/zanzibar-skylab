@@ -10,7 +10,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenScientificInfo: () => void;
   onOpenAbout: () => void;
-  onStartDemo: () => void;
+  onStartDemo?: () => void;
   nightMode: boolean;
   language: 'en' | 'sw';
 }
@@ -122,14 +122,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Primary Action (Competition Demo & Settings) */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <button
+          {onStartDemo && <button
             onClick={onStartDemo}
             className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
-            title="Launch 3-Minute Presenter Walkthrough"
+            title="Record an automated 2:55 observatory demonstration"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isSw ? 'Onyesho la Mashindano' : 'Competition Demo'}</span>
-          </button>
+            <span>Start Demo Recording</span>
+          </button>}
 
           <button
             onClick={onOpenSettings}
