@@ -15,7 +15,8 @@ import { TimeLab } from './components/timelab/TimeLab';
 import { ScientificInfoModal } from './components/layout/ScientificInfoModal';
 import { AboutModal } from './components/layout/AboutModal';
 import { SettingsModal } from './components/layout/SettingsModal';
-import { DemoController, DemoLanguage } from './components/demo/DemoController';
+import { DemoController } from './components/demo/DemoController';
+import { DemoLanguage } from './components/demo/demoConfig';
 import { DEMO_ENABLED, DemoFrame } from './components/demo/demoScenes';
 
 import { DEFAULT_OBSERVER } from './data/locations';
@@ -44,20 +45,20 @@ export default function App() {
     setDemoOpen(false);
     if (isDedicatedRecordingWindow) window.close();
   };
-  const openEnglishDemo = () => { setDemoLanguage('english'); setDemoOpen(true); };
-  const openSwahiliDemo = () => { setDemoLanguage('swahili'); setDemoOpen(true); };
+  const openDemo = () => setDemoOpen(true);
   return <>
     <div style={{ visibility: demoActive ? 'hidden' : 'visible' }} inert={demoOpen}>
-      <Observatory suspended={demoOpen} onStartDemo={DEMO_ENABLED ? openEnglishDemo : undefined} onStartSwahiliDemo={DEMO_ENABLED ? openSwahiliDemo : undefined} />
+      <Observatory suspended={demoOpen} onStartDemo={DEMO_ENABLED ? openDemo : undefined} demoLanguage={demoLanguage} onSelectDemoLanguage={setDemoLanguage} />
     </div>
     {DEMO_ENABLED && demoOpen && <DemoController onClose={closeDemo} onActive={setDemoActive}
+      key={demoLanguage}
       isDedicatedWindow={isDedicatedRecordingWindow} onOpenDedicatedWindow={() => openDedicatedWindow(demoLanguage)}
       mode={demoLanguage}
       renderObservatory={frame => <Observatory demoFrame={frame} />} />}
   </>;
 }
 
-function Observatory({ suspended = false, demoFrame, onStartDemo, onStartSwahiliDemo }: { suspended?: boolean; demoFrame?: DemoFrame; onStartDemo?: () => void; onStartSwahiliDemo?: () => void }) {
+function Observatory({ suspended = false, demoFrame, onStartDemo, demoLanguage, onSelectDemoLanguage }: { suspended?: boolean; demoFrame?: DemoFrame; onStartDemo?: () => void; demoLanguage?: DemoLanguage; onSelectDemoLanguage?: (language: DemoLanguage) => void }) {
   // Navigation & View state - 5 Professional Observatory Modules
   const [activeTab, setActiveTab] = useState<'sky' | 'planner' | 'objects' | 'timelab' | 'moon'>('sky');
 
@@ -80,7 +81,7 @@ function Observatory({ suspended = false, demoFrame, onStartDemo, onStartSwahili
 
   // Appearance & Localization
   const [nightMode, setNightMode] = useState<boolean>(false);
-  const [language, setLanguage] = useState<'en' | 'sw'>('en');
+  const [language, setLanguage] = useState<'en' | 'sw'>(() => demoFrame?.appLanguage === 'sw' ? 'sw' : 'en');
 
   // Hero banner dismissal in Sky view
   const [dismissHero, setDismissHero] = useState<boolean>(false);
@@ -116,9 +117,10 @@ function Observatory({ suspended = false, demoFrame, onStartDemo, onStartSwahili
     if (!demoFrame) return;
     setActiveTab(demoFrame.tab);
     setCurrentDate(previous => previous.getTime() === demoFrame.date.getTime() ? previous : demoFrame.date);
+    setLanguage(demoFrame.appLanguage === 'sw' ? 'sw' : 'en');
     setDismissHero(true);
     setTimeSpeed(600);
-  }, [demoFrame?.tab, demoFrame?.date.getTime()]);
+  }, [demoFrame?.tab, demoFrame?.date.getTime(), demoFrame?.appLanguage]);
 
   // Compute live sky state using astronomy-engine
   const skyState = useMemo(() => {
@@ -151,7 +153,8 @@ function Observatory({ suspended = false, demoFrame, onStartDemo, onStartSwahili
         onOpenScientificInfo={() => setIsScientificInfoOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
         onStartDemo={onStartDemo}
-        onStartSwahiliDemo={onStartSwahiliDemo}
+        demoLanguage={demoLanguage || 'english'}
+        onSelectDemoLanguage={onSelectDemoLanguage || (() => {})}
         nightMode={nightMode}
         language={language}
       />

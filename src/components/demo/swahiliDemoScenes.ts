@@ -12,6 +12,7 @@ export function swahiliFrameAt(seconds: number): DemoFrame {
 
   return {
     elapsed,
+    appLanguage: 'sw',
     scene: { start: scene.start, end: scene.end, title: scene.title, text: scene.subtitle },
     tab,
     date: new Date(Date.UTC(2026, 0, 15, 18) + advance * 1000 + (elapsed >= 110 ? 86400000 : 0)),

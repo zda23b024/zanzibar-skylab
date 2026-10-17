@@ -185,8 +185,13 @@ subtitles are in `src/components/demo/swahiliNarrationScript.json`. The scenes s
 directory does **not** contain a Kiswahili performance. Do not use the English Hazel
 draft or browser speech synthesis for this recording.
 
-The replacement workflow requires a locally selected Tanzanian/Zanzibar Kiswahili
-MP3 or WAV, exactly 180 seconds long. Record a warm, natural human performance; follow
+The easiest replacement workflow is to select a Tanzanian/Zanzibar Kiswahili MP3 or
+WAV from the preflight file picker. It stays on your computer and is not uploaded.
+For repeatable local/Vercel loading, place the approved file at
+`public/audio/competition-narration.sw.wav` and set
+`VITE_DEMO_SWAHILI_NARRATION_PATH="audio/competition-narration.sw.wav"` in `.env.local`
+or the Vercel project environment, then rebuild/redeploy. This is a public asset path,
+not a secret. Either way, the file must be exactly 180 seconds long. Record a warm, natural human performance; follow
 the scene boundaries in the JSON, keep sentence pauses near 0.2–0.5 seconds and section
 transitions near 0.5–1 second, and leave no unexplained silence over 1.5 seconds. A
 pronunciation review should cover Zanzibar, Unguja, Pemba, azimuth, and the Kiswahili

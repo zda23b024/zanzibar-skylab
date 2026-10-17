@@ -4,6 +4,7 @@ import { APP_CAPTURE_HANDLE, APP_CAPTURE_ORIGIN, assertBrowserTabCapture, displa
 import { runNarratedTimeline } from '../components/demo/narrationService';
 import swahiliScript from '../components/demo/swahiliNarrationScript.json';
 import { SWAHILI_DURATION, swahiliFrameAt } from '../components/demo/swahiliDemoScenes';
+import { DEMO_CONFIG } from '../components/demo/demoConfig';
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('competition timeline', () => {
   it('uses all six boundaries and the real five modules', () => {
@@ -35,6 +36,17 @@ describe('competition timeline', () => {
     expect(swahiliScript.every(scene => scene.subtitle.length > 0 && scene.text.length > scene.subtitle.length)).toBe(true);
     expect([0,20,55,90,125,140,155].map(time => swahiliFrameAt(time).tab)).toEqual(['sky','sky','timelab','planner','moon','objects','sky']);
     expect(swahiliFrameAt(168).closing).toBe(true);
+  });
+  it('keeps duration, narration source, scene schedule, navigation and filename language together', () => {
+    expect(DEMO_CONFIG.english).toMatchObject({ duration: 175, filenameLanguage: 'English' });
+    expect(DEMO_CONFIG.english.narration.sourceUrl).toContain('competition-narration.en.wav');
+    expect(DEMO_CONFIG.english.scenes).toBe(scenes);
+    expect(DEMO_CONFIG.english.frameAt(55).tab).toBe('timelab');
+    expect(DEMO_CONFIG.swahili).toMatchObject({ duration: 180, filenameLanguage: 'Kiswahili' });
+    expect(DEMO_CONFIG.swahili.narration.sourceUrl).toBeNull();
+    expect(DEMO_CONFIG.swahili.scenes).toBe(swahiliScript);
+    expect(DEMO_CONFIG.swahili.frameAt(55).tab).toBe('timelab');
+    expect(DEMO_CONFIG.swahili.frameAt(55).appLanguage).toBe('sw');
   });
 });
 class FakeRecorder {

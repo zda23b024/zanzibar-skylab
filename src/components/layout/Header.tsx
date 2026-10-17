@@ -1,6 +1,7 @@
 import React from 'react';
 import { Telescope, Compass, Settings, Sparkles, Calendar, Moon } from 'lucide-react';
 import { ObserverLocation } from '../../data/types';
+import { DemoLanguage } from '../demo/demoConfig';
 
 interface HeaderProps {
   activeTab: 'sky' | 'planner' | 'objects' | 'timelab' | 'moon';
@@ -11,7 +12,8 @@ interface HeaderProps {
   onOpenScientificInfo: () => void;
   onOpenAbout: () => void;
   onStartDemo?: () => void;
-  onStartSwahiliDemo?: () => void;
+  demoLanguage: DemoLanguage;
+  onSelectDemoLanguage: (language: DemoLanguage) => void;
   nightMode: boolean;
   language: 'en' | 'sw';
 }
@@ -25,7 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenScientificInfo,
   onOpenAbout,
   onStartDemo,
-  onStartSwahiliDemo,
+  demoLanguage,
+  onSelectDemoLanguage,
   nightMode,
   language
 }) => {
@@ -124,22 +127,25 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Primary Action (Competition Demo & Settings) */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {onStartDemo && <button
-            onClick={onStartDemo}
-            className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
-            title="Record an automated 2:55 observatory demonstration"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Start Demo Recording</span>
-          </button>}
-          {onStartSwahiliDemo && <button
-            onClick={onStartSwahiliDemo}
-            className="px-3.5 py-1.5 rounded-lg border border-emerald-400/60 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-100 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
-            title="Record a Kiswahili observatory demonstration"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Start Kiswahili Demo Recording</span>
-          </button>}
+          {onStartDemo && <div className="flex items-center gap-2">
+            <div role="group" aria-label="Demo language" className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+              {(['english', 'swahili'] as const).map(option => <button
+                key={option}
+                type="button"
+                aria-pressed={demoLanguage === option}
+                onClick={() => onSelectDemoLanguage(option)}
+                className={`rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${demoLanguage === option ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-100'}`}
+              >{option === 'english' ? 'English' : 'Kiswahili'}</button>)}
+            </div>
+            <button
+              onClick={onStartDemo}
+              className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+              title={`Record the ${demoLanguage === 'english' ? 'English' : 'Kiswahili'} observatory demonstration`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Start Demo Recording</span>
+            </button>
+          </div>}
 
           <button
             onClick={onOpenSettings}

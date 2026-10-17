@@ -24,7 +24,7 @@ export function frameAt(seconds: number) {
 
 }
 
-export type DemoFrame = ReturnType<typeof frameAt>;
+export type DemoFrame = ReturnType<typeof frameAt> & { appLanguage?: 'en' | 'sw' };
 
 /** One deadline, monotonic elapsed time, and an idempotent cancellation function. */
 

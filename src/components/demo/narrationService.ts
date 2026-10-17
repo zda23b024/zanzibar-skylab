@@ -77,7 +77,7 @@ export class NarrationAudio {
   constructor(private onFailure: (message: string) => void, private file?: File, options: NarrationOptions = ENGLISH_NARRATION_OPTIONS) {
     this.options = options;
     this.audio.preload = 'auto';
-    this.audio.onerror = () => onFailure(`Narration playback failed (media error ${this.audio.error?.code ?? 'unknown'}). Check ${NARRATION_URL}.`);
+    this.audio.onerror = () => onFailure(`Narration playback failed (media error ${this.audio.error?.code ?? 'unknown'}). Check ${this.options.sourceUrl || 'the selected local narration file'}.`);
   }
   async load() {
     const timeout = setTimeout(() => this.abort.abort(), 30000);
@@ -95,15 +95,13 @@ export class NarrationAudio {
       }
       this.bytes = await blob.arrayBuffer();
       if (this.disposed) throw new Error('Narration loading canceled.');
-      if (this.options.sourceUrl === null) {
-        const validationContext = new AudioContext();
-        try {
-          const decoded = await validationContext.decodeAudioData(this.bytes.slice(0));
-          validateNarration(decoded, this.options.duration, this.options.scenes);
-          this.verified = true;
-        } finally {
-          await validationContext.close();
-        }
+      const validationContext = new AudioContext();
+      try {
+        const decoded = await validationContext.decodeAudioData(this.bytes.slice(0));
+        validateNarration(decoded, this.options.duration, this.options.scenes);
+        this.verified = true;
+      } finally {
+        await validationContext.close();
       }
       this.objectUrl = URL.createObjectURL(blob);
       await new Promise<void>((resolve, reject) => {
