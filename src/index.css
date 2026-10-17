@@ -53,3 +53,11 @@
 .demo-closing span { color: #67e8f9; letter-spacing: .2em; font-size: 12px; }
 .demo-closing p { margin: 16px; }
 @media (max-width: 700px) { .demo-caption-heading { gap: 6px; flex-wrap: wrap; } .demo-caption { padding: 8px; } .demo-observatory { height: calc(100dvh - 190px); } .demo-caption { min-height: 190px; } }
+.recording-result { margin-top: 18px; padding: 18px; border: 1px solid #22d3ee55; border-radius: 12px; background: #07111f; }
+.recording-result h3 { margin: 0 0 12px; color: #a5f3fc; font-size: 16px; }
+.recording-result dl { display: grid; grid-template-columns: minmax(90px, 120px) minmax(0, 1fr); gap: 6px 12px; margin: 0 0 14px; font-size: 12px; }
+.recording-result dt { color: #94a3b8; }
+.recording-result dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: #e2e8f0; }
+.recording-preview { display: block; width: 100%; max-height: 360px; aspect-ratio: 16 / 9; background: #020617; border-radius: 8px; }
+.demo-dialog a.download-video { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 12px 20px; background: #22d3ee; color: #082f49; font-weight: 800; font-size: 15px; }
+.recording-result .demo-actions { margin-bottom: 0; }

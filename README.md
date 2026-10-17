@@ -175,3 +175,27 @@ Deploy a preview and run the same permission/download checks on its HTTPS URL be
 promoting to production. Do not embed it in an iframe that denies display capture.
 See [MDN screen capture permissions and compatibility](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia)
 and [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder).
+
+### Kiswahili competition demo
+
+The Kiswahili version is a separate optional recording mode; the existing English
+demonstration and its English narration are unchanged. Its full six-scene script and
+subtitles are in `src/components/demo/swahiliNarrationScript.json`. The scenes start at
+0, 20, 55, 90, 125, and 155 seconds and end at exactly 180 seconds. The shipped audio
+directory does **not** contain a Kiswahili performance. Do not use the English Hazel
+draft or browser speech synthesis for this recording.
+
+The replacement workflow requires a locally selected Tanzanian/Zanzibar Kiswahili
+MP3 or WAV, exactly 180 seconds long. Record a warm, natural human performance; follow
+the scene boundaries in the JSON, keep sentence pauses near 0.2–0.5 seconds and section
+transitions near 0.5–1 second, and leave no unexplained silence over 1.5 seconds. A
+pronunciation review should cover Zanzibar, Unguja, Pemba, azimuth, and the Kiswahili
+astronomy terms. The file is validated in the browser and is never uploaded. The UI
+must describe the recording as a draft until a human reviewer approves the voice.
+
+Before release, verify the exported media duration from its actual container metadata;
+a JavaScript deadline alone is not proof of an exact three-minute file. Browser
+MediaRecorder timing can vary, so a file outside the exact-duration acceptance check
+must not be offered as a completed recording. Real Chrome localhost and HTTPS Vercel
+capture, including audible Kiswahili playback and the final file's duration, require
+manual verification with the replacement voice loaded.

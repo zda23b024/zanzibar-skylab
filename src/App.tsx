@@ -15,7 +15,7 @@ import { TimeLab } from './components/timelab/TimeLab';
 import { ScientificInfoModal } from './components/layout/ScientificInfoModal';
 import { AboutModal } from './components/layout/AboutModal';
 import { SettingsModal } from './components/layout/SettingsModal';
-import { DemoController } from './components/demo/DemoController';
+import { DemoController, DemoLanguage } from './components/demo/DemoController';
 import { DEMO_ENABLED, DemoFrame } from './components/demo/demoScenes';
 
 import { DEFAULT_OBSERVER } from './data/locations';
@@ -27,10 +27,14 @@ const isDedicatedRecordingWindow = new URLSearchParams(window.location.search).g
 
 export default function App() {
   const [demoOpen, setDemoOpen] = useState(() => DEMO_ENABLED && isDedicatedRecordingWindow);
+  const [demoLanguage, setDemoLanguage] = useState<DemoLanguage>(() =>
+    isDedicatedRecordingWindow && new URLSearchParams(window.location.search).get('competitionLanguage') === 'swahili' ? 'swahili' : 'english'
+  );
   const [demoActive, setDemoActive] = useState(false);
-  const openDedicatedWindow = () => {
+  const openDedicatedWindow = (language: DemoLanguage) => {
     const url = new URL(window.location.href);
     url.searchParams.set('competitionRecordingWindow', '1');
+    url.searchParams.set('competitionLanguage', language);
     const recordingWindow = window.open(url.href, 'zanzibar-skylab-recording', 'popup,width=1440,height=900');
     if (!recordingWindow) return false;
     recordingWindow.focus();
@@ -40,17 +44,20 @@ export default function App() {
     setDemoOpen(false);
     if (isDedicatedRecordingWindow) window.close();
   };
+  const openEnglishDemo = () => { setDemoLanguage('english'); setDemoOpen(true); };
+  const openSwahiliDemo = () => { setDemoLanguage('swahili'); setDemoOpen(true); };
   return <>
     <div style={{ visibility: demoActive ? 'hidden' : 'visible' }} inert={demoOpen}>
-      <Observatory suspended={demoOpen} onStartDemo={DEMO_ENABLED ? () => setDemoOpen(true) : undefined} />
+      <Observatory suspended={demoOpen} onStartDemo={DEMO_ENABLED ? openEnglishDemo : undefined} onStartSwahiliDemo={DEMO_ENABLED ? openSwahiliDemo : undefined} />
     </div>
     {DEMO_ENABLED && demoOpen && <DemoController onClose={closeDemo} onActive={setDemoActive}
-      isDedicatedWindow={isDedicatedRecordingWindow} onOpenDedicatedWindow={openDedicatedWindow}
+      isDedicatedWindow={isDedicatedRecordingWindow} onOpenDedicatedWindow={() => openDedicatedWindow(demoLanguage)}
+      mode={demoLanguage}
       renderObservatory={frame => <Observatory demoFrame={frame} />} />}
   </>;
 }
 
-function Observatory({ suspended = false, demoFrame, onStartDemo }: { suspended?: boolean; demoFrame?: DemoFrame; onStartDemo?: () => void }) {
+function Observatory({ suspended = false, demoFrame, onStartDemo, onStartSwahiliDemo }: { suspended?: boolean; demoFrame?: DemoFrame; onStartDemo?: () => void; onStartSwahiliDemo?: () => void }) {
   // Navigation & View state - 5 Professional Observatory Modules
   const [activeTab, setActiveTab] = useState<'sky' | 'planner' | 'objects' | 'timelab' | 'moon'>('sky');
 
@@ -144,6 +151,7 @@ function Observatory({ suspended = false, demoFrame, onStartDemo }: { suspended?
         onOpenScientificInfo={() => setIsScientificInfoOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
         onStartDemo={onStartDemo}
+        onStartSwahiliDemo={onStartSwahiliDemo}
         nightMode={nightMode}
         language={language}
       />

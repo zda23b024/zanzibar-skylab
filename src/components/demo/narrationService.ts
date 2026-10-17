@@ -4,6 +4,21 @@ import { COUNTDOWN, DURATION, scenes } from './demoScenes';
 export const NARRATION_URL = `${import.meta.env.BASE_URL}${(import.meta.env.VITE_DEMO_NARRATION_PATH || 'audio/competition-narration.en.wav').replace(/^\/+/, '')}`;
 export const NARRATION_LABEL = import.meta.env.VITE_DEMO_NARRATION_LABEL || 'System voice timing draft (Microsoft Hazel); professional track pending';
 
+export interface NarrationScene {
+  start: number;
+  end: number;
+  title: string;
+  text: string;
+}
+
+export interface NarrationOptions {
+  duration: number;
+  scenes: readonly NarrationScene[];
+  sourceUrl: string | null;
+}
+
+const ENGLISH_NARRATION_OPTIONS: NarrationOptions = { duration: DURATION, scenes, sourceUrl: NARRATION_URL };
+
 export function silenceGaps(buffer: AudioBuffer, threshold = 0.0031623) {
   // 20 ms RMS windows, -50 dBFS threshold; all channels count, not just the left.
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
@@ -28,10 +43,10 @@ export function silenceGaps(buffer: AudioBuffer, threshold = 0.0031623) {
   if (start !== undefined) gaps.push({ start, end: buffer.duration, duration: buffer.duration - start });
   return gaps;
 }
-export function validateNarration(buffer: AudioBuffer) {
-  if (Math.abs(buffer.duration - DURATION) > 0.05) throw new Error('Narration must be 175 seconds (2:55), without a countdown. Export a 175-second master; WAV avoids MP3 encoder padding.');
+export function validateNarration(buffer: AudioBuffer, expectedDuration = DURATION, expectedScenes: readonly NarrationScene[] = scenes) {
+  if (Math.abs(buffer.duration - expectedDuration) > 0.0005) throw new Error(`Narration must be exactly ${expectedDuration} seconds, without a countdown. Export an exact-duration WAV master to avoid MP3 encoder padding.`);
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
-  for (const scene of scenes) {
+  for (const scene of expectedScenes) {
     let energy = 0;
     const begin = Math.floor(scene.start * buffer.sampleRate);
     const end = Math.min(channels[0]?.length ?? 0, Math.floor(scene.end * buffer.sampleRate));
@@ -58,7 +73,9 @@ export class NarrationAudio {
   private verified = false;
   private testTimer?: ReturnType<typeof setTimeout>;
   private preparationCancel?: () => void;
-  constructor(private onFailure: (message: string) => void, private file?: File) {
+  private options: NarrationOptions;
+  constructor(private onFailure: (message: string) => void, private file?: File, options: NarrationOptions = ENGLISH_NARRATION_OPTIONS) {
+    this.options = options;
     this.audio.preload = 'auto';
     this.audio.onerror = () => onFailure(`Narration playback failed (media error ${this.audio.error?.code ?? 'unknown'}). Check ${NARRATION_URL}.`);
   }
@@ -70,13 +87,24 @@ export class NarrationAudio {
         if (!/\.(mp3|wav)$/i.test(this.file.name)) throw new Error('Choose an MP3 or WAV narration file.');
         blob = this.file;
       } else {
-        const response = await fetch(NARRATION_URL, { signal: this.abort.signal });
-        if (!response.ok) throw new Error(`Narration file ${NARRATION_URL} returned HTTP ${response.status}.`);
+        if (!this.options.sourceUrl) throw new Error('Choose a Kiswahili narration MP3 or WAV before recording.');
+        const response = await fetch(this.options.sourceUrl, { signal: this.abort.signal });
+        if (!response.ok) throw new Error(`Narration file ${this.options.sourceUrl} returned HTTP ${response.status}.`);
         blob = await response.blob();
-        if (!blob.type.startsWith('audio/')) throw new Error(`Expected audio at ${NARRATION_URL}, received ${blob.type || 'no content type'}. Check the public asset and Vercel routing.`);
+        if (!blob.type.startsWith('audio/')) throw new Error(`Expected audio at ${this.options.sourceUrl}, received ${blob.type || 'no content type'}. Check the public asset and Vercel routing.`);
       }
       this.bytes = await blob.arrayBuffer();
       if (this.disposed) throw new Error('Narration loading canceled.');
+      if (this.options.sourceUrl === null) {
+        const validationContext = new AudioContext();
+        try {
+          const decoded = await validationContext.decodeAudioData(this.bytes.slice(0));
+          validateNarration(decoded, this.options.duration, this.options.scenes);
+          this.verified = true;
+        } finally {
+          await validationContext.close();
+        }
+      }
       this.objectUrl = URL.createObjectURL(blob);
       await new Promise<void>((resolve, reject) => {
         const done = (error?: Error) => {
@@ -131,14 +159,14 @@ export class NarrationAudio {
     if (this.disposed || operation !== this.operation) throw new Error('Narration preparation canceled.');
     this.audio.pause(); this.audio.currentTime = 0;
     if (!this.verified) {
-      validateNarration(await this.context.decodeAudioData(this.bytes.slice(0)));
+      validateNarration(await this.context.decodeAudioData(this.bytes.slice(0)), this.options.duration, this.options.scenes);
       this.verified = true;
     }
     if (this.disposed || operation !== this.operation) throw new Error('Narration preparation canceled.');
     if (this.context.state !== 'running' || !this.track || this.track.readyState !== 'live') throw new Error('The browser did not activate the narration audio track. Click Test Voice and check audio permissions.');
   }
   get track() { return this.destination?.stream.getAudioTracks()[0]; }
-  get time() { return Math.min(DURATION, this.audio.ended ? DURATION : this.audio.currentTime); }
+  get time() { return Math.min(this.options.duration, this.audio.ended ? this.options.duration : this.audio.currentTime); }
   get healthy() { return this.context?.state === 'running' && this.track?.readyState === 'live' && !this.audio.error; }
   async start() {
     if (!this.healthy || !this.verified) throw new Error('Narration audio is not ready for recording.');
@@ -195,7 +223,7 @@ export function narrationStream(capture: MediaStream, narration: MediaStreamTrac
 }
 
 /** Audio is the clock: scenes cannot drift away from the recorded words. */
-export function runNarratedTimeline(audio: Pick<NarrationAudio, 'time' | 'healthy'>, tick: (time: number) => void, complete: () => void, fail: (message: string) => void) {
+export function runNarratedTimeline(audio: Pick<NarrationAudio, 'time' | 'healthy'>, tick: (time: number) => void, complete: () => void, fail: (message: string) => void, duration = DURATION) {
   let previous = audio.time;
   let progressedAt = performance.now();
   let lastTickAudioTime = audio.time;
@@ -205,7 +233,7 @@ export function runNarratedTimeline(audio: Pick<NarrationAudio, 'time' | 'health
     const time = audio.time;
     if (time - lastTickAudioTime > 2) { cancel(); fail('Presentation updates fell behind the narration clock. The recording was discarded; keep the recording tab visible or use a dedicated recording window.'); return; }
     lastTickAudioTime = time;
-    if (time >= DURATION + COUNTDOWN) { cancel(); complete(); return; }
+    if (time >= duration + COUNTDOWN) { cancel(); complete(); return; }
     if (time > previous) { previous = time; progressedAt = performance.now(); }
     else if (performance.now() - progressedAt > 4000) { cancel(); fail('Narration playback stalled. The recording was discarded rather than saving a silent video.'); return; }
     tick(time - COUNTDOWN);

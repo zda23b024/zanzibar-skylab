@@ -11,6 +11,7 @@ interface HeaderProps {
   onOpenScientificInfo: () => void;
   onOpenAbout: () => void;
   onStartDemo?: () => void;
+  onStartSwahiliDemo?: () => void;
   nightMode: boolean;
   language: 'en' | 'sw';
 }
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenScientificInfo,
   onOpenAbout,
   onStartDemo,
+  onStartSwahiliDemo,
   nightMode,
   language
 }) => {
@@ -129,6 +131,14 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Start Demo Recording</span>
+          </button>}
+          {onStartSwahiliDemo && <button
+            onClick={onStartSwahiliDemo}
+            className="px-3.5 py-1.5 rounded-lg border border-emerald-400/60 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-100 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            title="Record a Kiswahili observatory demonstration"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Start Kiswahili Demo Recording</span>
           </button>}
 
           <button
