@@ -2,9 +2,31 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { englishVoices, narrationStream, NARRATION_URL, runNarratedTimeline, SpeechPreview, validateNarration, silenceGaps, NarrationAudio } from '../components/demo/narrationService';
 import { RecordingSession } from '../components/demo/recordingService';
+import { swahiliScenes } from '../components/demo/swahiliDemoScenes';
 import { scenes } from '../components/demo/demoScenes';
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+describe('bundled Kiswahili narration', () => {
+  it('validates the supplied 180-second WAV against the Kiswahili scenes', () => {
+    const bytes = readFileSync(new URL('../../public/audio/competition-narration.sw.wav', import.meta.url));
+    let rate = 0;
+    let samples = new Float32Array();
+    for (let offset = 12; offset + 8 <= bytes.length;) {
+      const kind = bytes.toString('ascii', offset, offset + 4);
+      const size = bytes.readUInt32LE(offset + 4);
+      if (kind === 'fmt ') {
+        expect(bytes.readUInt16LE(offset + 8)).toBe(1);
+        expect(bytes.readUInt16LE(offset + 10)).toBe(1);
+        expect(bytes.readUInt16LE(offset + 22)).toBe(16);
+        rate = bytes.readUInt32LE(offset + 12);
+      }
+      if (kind === 'data') samples = Float32Array.from({ length: size / 2 }, (_, i) => bytes.readInt16LE(offset + 8 + i * 2) / 32768);
+      offset += 8 + size + size % 2;
+    }
+    expect(samples.length / rate).toBe(180);
+    expect(() => validateNarration({ duration: 180, numberOfChannels: 1, sampleRate: rate, getChannelData: () => samples } as unknown as AudioBuffer, 180, swahiliScenes)).not.toThrow();
+  });
+});
 describe('bundled English narration', () => {
   it('ships a 175-second timing draft with speech in every scene and no long gaps', () => {
     const bytes = readFileSync(new URL('../../public/audio/competition-narration.en.wav', import.meta.url));

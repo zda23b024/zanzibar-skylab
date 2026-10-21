@@ -43,7 +43,7 @@ describe('competition timeline', () => {
     expect(DEMO_CONFIG.english.scenes).toBe(scenes);
     expect(DEMO_CONFIG.english.frameAt(55).tab).toBe('timelab');
     expect(DEMO_CONFIG.swahili).toMatchObject({ duration: 180, filenameLanguage: 'Kiswahili' });
-    expect(DEMO_CONFIG.swahili.narration.sourceUrl).toBeNull();
+    expect(DEMO_CONFIG.swahili.narration.sourceUrl).toBe('/audio/competition-narration.sw.wav');
     expect(DEMO_CONFIG.swahili.scenes).toBe(swahiliScript);
     expect(DEMO_CONFIG.swahili.frameAt(55).tab).toBe('timelab');
     expect(DEMO_CONFIG.swahili.frameAt(55).appLanguage).toBe('sw');

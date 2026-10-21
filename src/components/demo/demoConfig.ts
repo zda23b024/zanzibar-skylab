@@ -13,7 +13,7 @@ export interface DemoConfiguration {
   filenameLanguage: string;
 }
 
-const swahiliAudioPath = import.meta.env.VITE_DEMO_SWAHILI_NARRATION_PATH;
+const swahiliAudioPath = import.meta.env.VITE_DEMO_SWAHILI_NARRATION_PATH || 'audio/competition-narration.sw.wav';
 const swahiliAudioUrl = swahiliAudioPath
   ? `${import.meta.env.BASE_URL}${swahiliAudioPath.replace(/^\/+/, '')}`
   : null;

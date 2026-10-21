@@ -24,27 +24,11 @@ import { ObserverLocation, CalculatedBody } from './data/types';
 import { computeSkyState, buildObservationPlan } from './astronomy/engine';
 import { Sparkles, Telescope, Compass, BookOpen, Moon, ArrowRight, ShieldCheck } from 'lucide-react';
 
-const isDedicatedRecordingWindow = new URLSearchParams(window.location.search).get('competitionRecordingWindow') === '1';
-
 export default function App() {
-  const [demoOpen, setDemoOpen] = useState(() => DEMO_ENABLED && isDedicatedRecordingWindow);
-  const [demoLanguage, setDemoLanguage] = useState<DemoLanguage>(() =>
-    isDedicatedRecordingWindow && new URLSearchParams(window.location.search).get('competitionLanguage') === 'swahili' ? 'swahili' : 'english'
-  );
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoLanguage, setDemoLanguage] = useState<DemoLanguage>('english');
   const [demoActive, setDemoActive] = useState(false);
-  const openDedicatedWindow = (language: DemoLanguage) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('competitionRecordingWindow', '1');
-    url.searchParams.set('competitionLanguage', language);
-    const recordingWindow = window.open(url.href, 'zanzibar-skylab-recording', 'popup,width=1440,height=900');
-    if (!recordingWindow) return false;
-    recordingWindow.focus();
-    return true;
-  };
-  const closeDemo = () => {
-    setDemoOpen(false);
-    if (isDedicatedRecordingWindow) window.close();
-  };
+  const closeDemo = () => setDemoOpen(false);
   const openDemo = () => setDemoOpen(true);
   return <>
     <div style={{ visibility: demoActive ? 'hidden' : 'visible' }} inert={demoOpen}>
@@ -52,7 +36,6 @@ export default function App() {
     </div>
     {DEMO_ENABLED && demoOpen && <DemoController onClose={closeDemo} onActive={setDemoActive}
       key={demoLanguage}
-      isDedicatedWindow={isDedicatedRecordingWindow} onOpenDedicatedWindow={() => openDedicatedWindow(demoLanguage)}
       mode={demoLanguage}
       renderObservatory={frame => <Observatory demoFrame={frame} />} />}
   </>;

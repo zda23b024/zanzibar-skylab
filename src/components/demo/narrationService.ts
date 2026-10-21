@@ -87,7 +87,7 @@ export class NarrationAudio {
         if (!/\.(mp3|wav)$/i.test(this.file.name)) throw new Error('Choose an MP3 or WAV narration file.');
         blob = this.file;
       } else {
-        if (!this.options.sourceUrl) throw new Error('Choose a Kiswahili narration MP3 or WAV before recording.');
+        if (!this.options.sourceUrl) throw new Error('Choose a Kiswahili narration MP3 or WAV before playback.');
         const response = await fetch(this.options.sourceUrl, { signal: this.abort.signal });
         if (!response.ok) throw new Error(`Narration file ${this.options.sourceUrl} returned HTTP ${response.status}.`);
         blob = await response.blob();
@@ -150,7 +150,7 @@ export class NarrationAudio {
         clearTimeout(timeout); this.preparationCancel = undefined;
         error ? reject(error) : resolve();
       };
-      const timeout = setTimeout(() => done(new Error('Audio activation timed out. Allow sound for this site and click Test Voice.')), 10000);
+      const timeout = setTimeout(() => done(new Error('Audio activation timed out. Allow sound for this site and start the tour again.')), 10000);
       this.preparationCancel = () => done(new Error('Narration preparation canceled.'));
       activation.then(() => done(), error => done(error));
     });
@@ -161,13 +161,13 @@ export class NarrationAudio {
       this.verified = true;
     }
     if (this.disposed || operation !== this.operation) throw new Error('Narration preparation canceled.');
-    if (this.context.state !== 'running' || !this.track || this.track.readyState !== 'live') throw new Error('The browser did not activate the narration audio track. Click Test Voice and check audio permissions.');
+    if (this.context.state !== 'running' || !this.track || this.track.readyState !== 'live') throw new Error('The browser did not activate the narration audio track. Allow sound for this site and start the tour again.');
   }
   get track() { return this.destination?.stream.getAudioTracks()[0]; }
   get time() { return Math.min(this.options.duration, this.audio.ended ? this.options.duration : this.audio.currentTime); }
   get healthy() { return this.context?.state === 'running' && this.track?.readyState === 'live' && !this.audio.error; }
   async start() {
-    if (!this.healthy || !this.verified) throw new Error('Narration audio is not ready for recording.');
+    if (!this.healthy || !this.verified) throw new Error('Narration audio is not ready for playback.');
     this.gain!.gain.value = 1;
     this.audio.currentTime = 0;
     await this.audio.play();
@@ -214,7 +214,7 @@ export class SpeechPreview {
 }
 
 export function narrationStream(capture: MediaStream, narration: MediaStreamTrack) {
-  if (narration.kind !== 'audio' || narration.readyState !== 'live') throw new Error('A live narration track is required before recording.');
+  if (narration.kind !== 'audio' || narration.readyState !== 'live') throw new Error('A live narration track is required before playback.');
   // Exclude captured tab audio to prevent doubling the narration heard through speakers.
   capture.getAudioTracks().forEach(track => track.stop());
   return new MediaStream([...capture.getVideoTracks(), narration.clone()]);
@@ -227,19 +227,19 @@ export function runNarratedTimeline(audio: Pick<NarrationAudio, 'time' | 'health
   let lastTickAudioTime = audio.time;
   let stopped = false;
   const timer = setInterval(() => {
-    if (!audio.healthy) { cancel(); fail('Narration audio was interrupted. The recording was discarded; check audio permissions and try again.'); return; }
+    if (!audio.healthy) { cancel(); fail('Narration audio was interrupted. Check audio permissions and try again.'); return; }
     const time = audio.time;
-    if (time - lastTickAudioTime > 2) { cancel(); fail('Presentation updates fell behind the narration clock. The recording was discarded; keep the recording tab visible or use a dedicated recording window.'); return; }
+    if (time - lastTickAudioTime > 2) { cancel(); fail('Presentation updates fell behind the narration clock. Keep this tab visible and try again.'); return; }
     lastTickAudioTime = time;
     if (time >= duration + COUNTDOWN) { cancel(); complete(); return; }
     if (time > previous) { previous = time; progressedAt = performance.now(); }
-    else if (performance.now() - progressedAt > 4000) { cancel(); fail('Narration playback stalled. The recording was discarded rather than saving a silent video.'); return; }
+    else if (performance.now() - progressedAt > 4000) { cancel(); fail('Narration playback stalled. Please try the tour again.'); return; }
     tick(time - COUNTDOWN);
   }, 50);
   const visibilityChanged = () => {
     if (document.visibilityState !== 'visible') {
       cancel();
-      fail('The recording tab became hidden. Background rendering is not reliable, so the recording was discarded. Use a dedicated recording window and keep it visible.');
+      fail('The tour stopped because this tab became hidden. Keep this tab visible during the tour.');
     }
   };
   function cancel() {
