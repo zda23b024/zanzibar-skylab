@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Zone 3: Primary Action (Competition Demo & Settings) */}
         <div className="flex items-center gap-2.5 shrink-0">
           {onStartDemo && <div className="flex items-center gap-2">
-            <div role="group" aria-label="Tour language" className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+            <div role="group" aria-label={isSw ? 'Lugha ya programu na mwongozo' : 'App and tour language'} className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
               {(['english', 'swahili'] as const).map(option => <button
                 key={option}
                 type="button"
@@ -140,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onStartDemo}
               className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
-              title={`Explore the ${demoLanguage === 'english' ? 'English' : 'Kiswahili'} observatory with a narrated tour`}
+              title={isSw ? 'Jifunze kutumia programu kwa mwongozo wa sauti ya Kiswahili' : 'Explore the observatory with an English narrated tour'}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>{demoLanguage === 'swahili' ? 'Jifunze Kutumia Programu' : 'Take a Guided Tour'}</span>

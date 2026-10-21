@@ -64,7 +64,9 @@ function Observatory({ suspended = false, demoFrame, onStartDemo, demoLanguage, 
 
   // Appearance & Localization
   const [nightMode, setNightMode] = useState<boolean>(false);
-  const [language, setLanguage] = useState<'en' | 'sw'>(() => demoFrame?.appLanguage === 'sw' ? 'sw' : 'en');
+  const language: 'en' | 'sw' = demoFrame
+    ? (demoFrame.appLanguage === 'sw' ? 'sw' : 'en')
+    : (demoLanguage === 'swahili' ? 'sw' : 'en');
 
   // Hero banner dismissal in Sky view
   const [dismissHero, setDismissHero] = useState<boolean>(false);
@@ -100,7 +102,6 @@ function Observatory({ suspended = false, demoFrame, onStartDemo, demoLanguage, 
     if (!demoFrame) return;
     setActiveTab(demoFrame.tab);
     setCurrentDate(previous => previous.getTime() === demoFrame.date.getTime() ? previous : demoFrame.date);
-    setLanguage(demoFrame.appLanguage === 'sw' ? 'sw' : 'en');
     setDismissHero(true);
     setTimeSpeed(600);
   }, [demoFrame?.tab, demoFrame?.date.getTime(), demoFrame?.appLanguage]);
@@ -296,7 +297,7 @@ function Observatory({ suspended = false, demoFrame, onStartDemo, demoLanguage, 
         nightMode={nightMode}
         onToggleNightMode={() => setNightMode(m => !m)}
         language={language}
-        onChangeLanguage={setLanguage}
+        onChangeLanguage={language => onSelectDemoLanguage?.(language === 'sw' ? 'swahili' : 'english')}
       />
 
 
